@@ -1,6 +1,6 @@
 /*!
  * Fortune.js
- * Version 5.1.0
+ * Version 5.2.2
  * MIT License
  * http://fortune.js.org
  */
@@ -284,7 +284,7 @@ function compare (fields, sort) {
 }
 
 }).call(this,require("buffer").Buffer)
-},{"../../common/array/find":8,"../../common/deep_equal":19,"../../common/errors":20,"../../common/generate_id":22,"../../common/keys":24,"../../common/message":25,"buffer":45}],2:[function(require,module,exports){
+},{"../../common/array/find":8,"../../common/deep_equal":19,"../../common/errors":20,"../../common/generate_id":22,"../../common/keys":24,"../../common/message":25,"buffer":46}],2:[function(require,module,exports){
 'use strict'
 
 var common = require('../common')
@@ -300,7 +300,7 @@ exports.inputRecord = function (type, record) {
   var result = {}
   var i, j, field
 
-  // ID business.
+  // Ensure that ID exists on the record.
   result[primaryKey] = primaryKey in record ?
     record[primaryKey] : generateId()
 
@@ -328,7 +328,7 @@ exports.outputRecord = function (type, record) {
   var result = {}
   var i, j, field, hasField, value
 
-  // ID business.
+  // Ensure that ID exists on the record.
   result[primaryKey] = record[primaryKey]
 
   for (i = 0, j = fieldsArray.length; i < j; i++) {
@@ -356,6 +356,7 @@ exports.outputRecord = function (type, record) {
 
 var applyUpdate = require('../../../common/apply_update')
 var map = require('../../../common/array/map')
+var promise = require('../../../common/promise')
 
 var common = require('../common')
 var applyOptions = common.applyOptions
@@ -379,6 +380,7 @@ module.exports = function (Adapter) {
   MemoryAdapter.prototype = new Adapter()
 
   MemoryAdapter.prototype.connect = function () {
+    var Promise = promise.Promise
     var recordTypes = this.recordTypes
     var type
 
@@ -392,12 +394,15 @@ module.exports = function (Adapter) {
 
 
   MemoryAdapter.prototype.disconnect = function () {
+    var Promise = promise.Promise
+
     delete this.db
     return Promise.resolve()
   }
 
 
   MemoryAdapter.prototype.find = function (type, ids, options, meta) {
+    var Promise = promise.Promise
     var self = this
     var recordTypes = self.recordTypes
     var fields = recordTypes[type]
@@ -428,6 +433,7 @@ module.exports = function (Adapter) {
 
 
   MemoryAdapter.prototype.create = function (type, records, meta) {
+    var Promise = promise.Promise
     var self = this
     var message = self.message
     var recordsPerType = self.options.recordsPerType
@@ -478,6 +484,7 @@ module.exports = function (Adapter) {
 
 
   MemoryAdapter.prototype.update = function (type, updates) {
+    var Promise = promise.Promise
     var self = this
     var primaryKey = self.keys.primary
     var collection = self.db[type]
@@ -509,6 +516,7 @@ module.exports = function (Adapter) {
 
 
   MemoryAdapter.prototype.delete = function (type, ids) {
+    var Promise = promise.Promise
     var collection = this.db[type]
     var count = 0
     var i, j, id
@@ -534,7 +542,7 @@ module.exports = function (Adapter) {
   // Expose utility functions.
   MemoryAdapter.common = common
 
-  // Expose features.
+  // Expose features for introspection.
   MemoryAdapter.features = {
     logicalOperators: true
   }
@@ -542,10 +550,11 @@ module.exports = function (Adapter) {
   return MemoryAdapter
 }
 
-},{"../../../common/apply_update":6,"../../../common/array/map":10,"../common":1,"./helpers":2}],4:[function(require,module,exports){
+},{"../../../common/apply_update":6,"../../../common/array/map":10,"../../../common/promise":27,"../common":1,"./helpers":2}],4:[function(require,module,exports){
 'use strict'
 
 var assign = require('../common/assign')
+var promise = require('../common/promise')
 var memoryAdapter = require('./adapters/memory')
 
 
@@ -602,6 +611,7 @@ delete Adapter.prototype.constructor
  * @return {Promise}
  */
 Adapter.prototype.connect = function () {
+  var Promise = promise.Promise
   return Promise.resolve()
 }
 
@@ -612,6 +622,7 @@ Adapter.prototype.connect = function () {
  * @return {Promise}
  */
 Adapter.prototype.disconnect = function () {
+  var Promise = promise.Promise
   return Promise.resolve()
 }
 
@@ -633,6 +644,7 @@ Adapter.prototype.disconnect = function () {
  * @return {Promise}
  */
 Adapter.prototype.create = function () {
+  var Promise = promise.Promise
   return Promise.resolve([])
 }
 
@@ -735,6 +747,7 @@ Adapter.prototype.create = function () {
  * @return {Promise}
  */
 Adapter.prototype.find = function () {
+  var Promise = promise.Promise
   var results = []
   results.count = 0
   return Promise.resolve(results)
@@ -781,6 +794,7 @@ Adapter.prototype.find = function () {
  * @return {Promise}
  */
 Adapter.prototype.update = function () {
+  var Promise = promise.Promise
   return Promise.resolve(0)
 }
 
@@ -796,6 +810,7 @@ Adapter.prototype.update = function () {
  * @return {Promise}
  */
 Adapter.prototype.delete = function () {
+  var Promise = promise.Promise
   return Promise.resolve(0)
 }
 
@@ -808,6 +823,7 @@ Adapter.prototype.delete = function () {
  * @return {Promise}
  */
 Adapter.prototype.beginTransaction = function () {
+  var Promise = promise.Promise
   return Promise.resolve(this)
 }
 
@@ -821,6 +837,7 @@ Adapter.prototype.beginTransaction = function () {
  * @return {Promise}
  */
 Adapter.prototype.endTransaction = function () {
+  var Promise = promise.Promise
   return Promise.resolve()
 }
 
@@ -848,7 +865,7 @@ Adapter.features = {}
 
 module.exports = Adapter
 
-},{"../common/assign":14,"./adapters/memory":3}],5:[function(require,module,exports){
+},{"../common/assign":14,"../common/promise":27,"./adapters/memory":3}],5:[function(require,module,exports){
 'use strict'
 
 var Adapter = require('./')
@@ -856,6 +873,7 @@ var common = require('../common')
 var errors = require('../common/errors')
 var keys = require('../common/keys')
 var message = require('../common/message')
+var promise = require('../common/promise')
 
 
 /**
@@ -884,16 +902,14 @@ function AdapterSingleton (properties) {
     errors: errors,
     keys: keys,
     message: message,
-
-    // For backwards compatibility.
-    Promise: Promise
+    Promise: promise.Promise
   })
 }
 
 
 module.exports = AdapterSingleton
 
-},{"../common":23,"../common/errors":20,"../common/keys":24,"../common/message":25,"./":4}],6:[function(require,module,exports){
+},{"../common":23,"../common/errors":20,"../common/keys":24,"../common/message":25,"../common/promise":27,"./":4}],6:[function(require,module,exports){
 'use strict'
 
 var pull = require('./array/pull')
@@ -1195,7 +1211,7 @@ module.exports = function castValue (value, type, options) {
 }
 
 }).call(this,require("buffer").Buffer)
-},{"./cast_to_number":15,"./errors":20,"./message":25,"buffer":45}],17:[function(require,module,exports){
+},{"./cast_to_number":15,"./errors":20,"./message":25,"buffer":46}],17:[function(require,module,exports){
 'use strict'
 
 /**
@@ -1215,7 +1231,7 @@ module.exports = function clone (input) {
 
   for (key in input) {
     value = input[key]
-    output[key] = value != null &&
+    output[key] = value !== null && value !== undefined &&
       Object.getPrototypeOf(value) === Object.prototype ||
       Array.isArray(value) ? clone(value) : value
   }
@@ -1225,6 +1241,20 @@ module.exports = function clone (input) {
 
 },{}],18:[function(require,module,exports){
 'use strict'
+
+var hasSymbol = typeof Symbol === 'function'
+var i, j, key
+var privateKeys = [
+  // This is set on the field definition object internally if it is an
+  // automatically generated denormalized field.
+  'denormalizedInverse',
+
+  // Used to map update objects to records.
+  'updateRecord',
+
+  // Used to map update objects to a hash of linked records.
+  'linkedHash'
+]
 
 // The primary key that must exist per record, can not be user defined.
 exports.primary = 'id'
@@ -1236,7 +1266,10 @@ exports.inverse = 'inverse'
 exports.isArray = 'isArray'
 
 // Should be reserved for private use.
-exports.denormalizedInverse = '__denormalizedInverse__'
+for (i = 0, j = privateKeys.length; i < j; i++) {
+  key = privateKeys[i]
+  exports[key] = hasSymbol ? Symbol(key) : '__' + key + '__'
+}
 
 // Events.
 exports.change = 'change'
@@ -1311,7 +1344,7 @@ function deepEqual (a, b) {
 module.exports = deepEqual
 
 }).call(this,{"isBuffer":require("../../node_modules/is-buffer/index.js")})
-},{"../../node_modules/is-buffer/index.js":49}],20:[function(require,module,exports){
+},{"../../node_modules/is-buffer/index.js":50}],20:[function(require,module,exports){
 'use strict'
 
 var responseClass = require('./response_classes')
@@ -1324,9 +1357,10 @@ exports.MethodError = responseClass.MethodError
 exports.NotAcceptableError = responseClass.NotAcceptableError
 exports.ConflictError = responseClass.ConflictError
 exports.UnsupportedError = responseClass.UnsupportedError
+exports.UnprocessableError = responseClass.UnprocessableError
 exports.nativeErrors = responseClass.nativeErrors
 
-},{"./response_classes":27}],21:[function(require,module,exports){
+},{"./response_classes":28}],21:[function(require,module,exports){
 'use strict'
 
 var constants = require('./constants')
@@ -1382,7 +1416,7 @@ module.exports = {
   unique: require('./array/unique')
 }
 
-},{"./array/filter":7,"./array/find":8,"./array/includes":9,"./array/map":10,"./array/pull":11,"./array/reduce":12,"./array/unique":13,"./assign":14,"./cast_to_number":15,"./cast_value":16,"./clone":17,"./constants":18,"./deep_equal":19,"./errors":20,"./events":21,"./generate_id":22,"./keys":24,"./message":25,"./methods":26,"./response_classes":27,"./success":28}],24:[function(require,module,exports){
+},{"./array/filter":7,"./array/find":8,"./array/includes":9,"./array/map":10,"./array/pull":11,"./array/reduce":12,"./array/unique":13,"./assign":14,"./cast_to_number":15,"./cast_value":16,"./clone":17,"./constants":18,"./deep_equal":19,"./errors":20,"./events":21,"./generate_id":22,"./keys":24,"./message":25,"./methods":26,"./response_classes":28,"./success":29}],24:[function(require,module,exports){
 'use strict'
 
 var constants = require('./constants')
@@ -1515,6 +1549,13 @@ exports.delete = constants.delete
 },{"./constants":18}],27:[function(require,module,exports){
 'use strict'
 
+// This object exists as a container for the Promise implementation. By
+// default, it's the native one.
+exports.Promise = Promise
+
+},{}],28:[function(require,module,exports){
+'use strict'
+
 var errorClass = require('error-class')
 var assign = require('./assign')
 
@@ -1534,6 +1575,7 @@ exports.MethodError = errorClass('MethodError')
 exports.NotAcceptableError = errorClass('NotAcceptableError')
 exports.ConflictError = errorClass('ConflictError')
 exports.UnsupportedError = errorClass('UnsupportedError')
+exports.UnprocessableError = errorClass('UnprocessableError')
 
 
 // White-list native error types. The list is gathered from here:
@@ -1551,7 +1593,7 @@ function successClass (name) {
     'assign(this, x) }')(assign)
 }
 
-},{"./assign":14,"error-class":46}],28:[function(require,module,exports){
+},{"./assign":14,"error-class":47}],29:[function(require,module,exports){
 'use strict'
 
 var responseClass = require('./response_classes')
@@ -1560,10 +1602,11 @@ exports.OK = responseClass.OK
 exports.Created = responseClass.Created
 exports.Empty = responseClass.Empty
 
-},{"./response_classes":27}],29:[function(require,module,exports){
+},{"./response_classes":28}],30:[function(require,module,exports){
 'use strict'
 
 var message = require('../common/message')
+var promise = require('../common/promise')
 var unique = require('../common/array/unique')
 var map = require('../common/array/map')
 var includes = require('../common/array/includes')
@@ -1577,10 +1620,13 @@ var linkKey = keys.link
 var isArrayKey = keys.isArray
 var inverseKey = keys.inverse
 
+module.exports = checkLinks
+
 
 /**
  * Ensure referential integrity by checking if related records exist.
  *
+ * @param {Object} transaction
  * @param {Object} record
  * @param {Object} fields
  * @param {String[]} links - An array of strings indicating which fields are
@@ -1588,8 +1634,8 @@ var inverseKey = keys.inverse
  * @param {Object} [meta]
  * @return {Promise}
  */
-module.exports = function checkLinks (record, fields, links, meta) {
-  var adapter = this.adapter
+function checkLinks (transaction, record, fields, links, meta) {
+  var Promise = promise.Promise
   var enforceLinks = this.options.settings.enforceLinks
 
   return Promise.all(map(links, function (field) {
@@ -1606,7 +1652,7 @@ module.exports = function checkLinks (record, fields, links, meta) {
     return new Promise(function (resolve, reject) {
       if (!ids.length) return resolve()
 
-      return adapter.find(fieldLink, ids, findOptions, meta)
+      return transaction.find(fieldLink, ids, findOptions, meta)
 
       .then(function (records) {
         var recordIds, i, j
@@ -1643,19 +1689,21 @@ module.exports = function checkLinks (record, fields, links, meta) {
   })
 }
 
-},{"../common/array/includes":9,"../common/array/map":10,"../common/array/unique":13,"../common/errors":20,"../common/keys":24,"../common/message":25}],30:[function(require,module,exports){
+},{"../common/array/includes":9,"../common/array/map":10,"../common/array/unique":13,"../common/errors":20,"../common/keys":24,"../common/message":25,"../common/promise":27}],31:[function(require,module,exports){
 'use strict'
 
 var validateRecords = require('./validate_records')
 var checkLinks = require('./check_links')
 var enforce = require('../record_type/enforce')
 var message = require('../common/message')
+var promise = require('../common/promise')
 var map = require('../common/array/map')
 
 var errors = require('../common/errors')
 var BadRequestError = errors.BadRequestError
 
 var updateHelpers = require('./update_helpers')
+var scrubDenormalizedUpdates = updateHelpers.scrubDenormalizedUpdates
 var getUpdate = updateHelpers.getUpdate
 var addId = updateHelpers.addId
 
@@ -1677,8 +1725,9 @@ var denormalizedInverseKey = constants.denormalizedInverse
  * @return {Promise}
  */
 module.exports = function (context) {
+  var Promise = promise.Promise
   var self = this
-  var adapter = self.adapter
+  var denormalizedFields = self.denormalizedFields
   var recordTypes = self.recordTypes
   var hooks = self.hooks
   var updates = {}
@@ -1698,6 +1747,7 @@ module.exports = function (context) {
 
     type = context.request.type
     meta = context.request.meta
+    transaction = context.transaction
     language = meta.language
 
     hook = hooks[type]
@@ -1712,12 +1762,6 @@ module.exports = function (context) {
         for (i = 0, j = records.length; i < j; i++)
           delete records[i][field]
     }
-
-    return adapter.beginTransaction()
-  })
-
-  .then(function (result) {
-    context.transaction = transaction = result
 
     return typeof hook[0] === 'function' ?
       Promise.all(map(records, function (record) {
@@ -1734,7 +1778,7 @@ module.exports = function (context) {
       enforce(type, record, fields, meta)
 
       // Ensure referential integrity.
-      return checkLinks.call(self, record, fields, links, meta)
+      return checkLinks.call(self, transaction, record, fields, links, meta)
     }))
   })
 
@@ -1804,23 +1848,16 @@ module.exports = function (context) {
   })
 
   .then(function () {
-    return transaction.endTransaction()
-  })
-
-  // This makes sure to call `endTransaction` before re-throwing the error.
-  .catch(function (error) {
-    if (transaction) transaction.endTransaction(error)
-    throw error
-  })
-
-  .then(function () {
     var eventData = {}, currentType
 
     eventData[createMethod] = {}
     eventData[createMethod][type] = records
 
     for (currentType in updates) {
+      scrubDenormalizedUpdates(updates[currentType], denormalizedFields)
+
       if (!updates[currentType].length) continue
+
       if (!(updateMethod in eventData)) eventData[updateMethod] = {}
       eventData[updateMethod][currentType] = updates[currentType]
     }
@@ -1832,16 +1869,18 @@ module.exports = function (context) {
   })
 }
 
-},{"../common/array/map":10,"../common/constants":18,"../common/errors":20,"../common/message":25,"../record_type/enforce":41,"./check_links":29,"./update_helpers":37,"./validate_records":38}],31:[function(require,module,exports){
+},{"../common/array/map":10,"../common/constants":18,"../common/errors":20,"../common/message":25,"../common/promise":27,"../record_type/enforce":42,"./check_links":30,"./update_helpers":38,"./validate_records":39}],32:[function(require,module,exports){
 'use strict'
 
 var message = require('../common/message')
+var promise = require('../common/promise')
 var map = require('../common/array/map')
 
 var errors = require('../common/errors')
 var NotFoundError = errors.NotFoundError
 
 var updateHelpers = require('./update_helpers')
+var scrubDenormalizedUpdates = updateHelpers.scrubDenormalizedUpdates
 var getUpdate = updateHelpers.getUpdate
 var removeId = updateHelpers.removeId
 
@@ -1861,13 +1900,14 @@ var isArrayKey = constants.isArray
  * @return {Promise}
  */
 module.exports = function (context) {
+  var Promise = promise.Promise
   var self = this
+  var denormalizedFields = self.denormalizedFields
   var request = context.request
   var type = request.type
   var ids = request.ids
   var meta = request.meta
   var language = meta.language
-  var adapter = self.adapter
   var recordTypes = self.recordTypes
   var hooks = self.hooks
   var updates = {}
@@ -1876,13 +1916,15 @@ module.exports = function (context) {
   var links = []
   var transaction, field, records
 
+  transaction = context.transaction
+
   for (field in fields)
     if (linkKey in fields[field]) links.push(field)
 
   if (!ids || !ids.length)
     throw new NotFoundError(message('DeleteRecordsMissingID', language))
 
-  return adapter.find(type, ids, null, meta)
+  return transaction.find(type, ids, null, meta)
 
   .then(function (foundRecords) {
     records = foundRecords
@@ -1894,12 +1936,6 @@ module.exports = function (context) {
       configurable: true,
       value: records
     })
-
-    return adapter.beginTransaction()
-  })
-
-  .then(function (result) {
-    context.transaction = transaction = result
 
     return typeof hook[0] === 'function' ?
       Promise.all(map(records, function (record) {
@@ -1958,23 +1994,16 @@ module.exports = function (context) {
   })
 
   .then(function () {
-    return transaction.endTransaction()
-  })
-
-  // This makes sure to call `endTransaction` before re-throwing the error.
-  .catch(function (error) {
-    if (transaction) transaction.endTransaction(error)
-    throw error
-  })
-
-  .then(function () {
     var eventData = {}, currentType
 
     eventData[deleteMethod] = {}
     eventData[deleteMethod][type] = ids
 
     for (currentType in updates) {
+      scrubDenormalizedUpdates(updates[currentType], denormalizedFields)
+
       if (!updates[currentType].length) continue
+
       if (!(updateMethod in eventData)) eventData[updateMethod] = {}
       eventData[updateMethod][currentType] = updates[currentType]
     }
@@ -1986,10 +2015,11 @@ module.exports = function (context) {
   })
 }
 
-},{"../common/array/map":10,"../common/constants":18,"../common/errors":20,"../common/message":25,"./update_helpers":37}],32:[function(require,module,exports){
+},{"../common/array/map":10,"../common/constants":18,"../common/errors":20,"../common/message":25,"../common/promise":27,"./update_helpers":38}],33:[function(require,module,exports){
 'use strict'
 
 var map = require('../common/array/map')
+var promise = require('../common/promise')
 
 
 /**
@@ -1998,6 +2028,7 @@ var map = require('../common/array/map')
  * @return {Promise}
  */
 module.exports = function (context) {
+  var Promise = promise.Promise
   var hooks = this.hooks
   var request = context.request
   var response = context.response
@@ -2009,10 +2040,6 @@ module.exports = function (context) {
   // Delete temporary keys.
   delete response.records
   delete response.include
-
-  // Delete this key as well, since the transaction should already be ended
-  // at this point.
-  delete context.transaction
 
   // Run hooks on primary type.
   return (records ? Promise.all(map(records, function (record) {
@@ -2066,7 +2093,7 @@ module.exports = function (context) {
   })
 }
 
-},{"../common/array/map":10}],33:[function(require,module,exports){
+},{"../common/array/map":10,"../common/promise":27}],34:[function(require,module,exports){
 'use strict'
 
 /**
@@ -2076,7 +2103,7 @@ module.exports = function (context) {
  * @return {Promise}
  */
 module.exports = function (context) {
-  var adapter = this.adapter
+  var transaction = context.transaction
   var request = context.request
   var type = request.type
   var ids = request.ids
@@ -2085,7 +2112,7 @@ module.exports = function (context) {
 
   if (!type) return context
 
-  return adapter.find(type, ids, options, meta)
+  return transaction.find(type, ids, options, meta)
   .then(function (records) {
     Object.defineProperty(context.response, 'records', {
       configurable: true,
@@ -2096,9 +2123,10 @@ module.exports = function (context) {
   })
 }
 
-},{}],34:[function(require,module,exports){
+},{}],35:[function(require,module,exports){
 'use strict'
 
+var promise = require('../common/promise')
 var map = require('../common/array/map')
 var find = require('../common/array/find')
 var reduce = require('../common/array/reduce')
@@ -2112,21 +2140,22 @@ var linkKey = keys.link
 
 
 /**
- * Fetch included records. This mutates `context`.response`
+ * Fetch included records. This mutates `context.response`
  * for the next method.
  *
  * @return {Promise}
  */
 module.exports = function include (context) {
+  var Promise = promise.Promise
   var request = context.request
   var type = request.type
   var ids = request.ids || []
   var include = request.include
   var meta = request.meta
   var response = context.response
+  var transaction = context.transaction
   var records = response.records
   var recordTypes = this.recordTypes
-  var adapter = this.adapter
   var i, j, record, id
 
   // This cache is used to keep unique IDs per type.
@@ -2150,14 +2179,14 @@ module.exports = function include (context) {
     return new Promise(function (resolve, reject) {
       var currentType = type
       var currentIds = []
-      var currentCache, currentOptions, currentField, includeOptions
+      var includeOptions = []
+      var currentCache, currentOptions, currentField, i, j
 
-      if (typeof fields[fields.length - 1] === 'object') {
-        includeOptions = fields[fields.length - 1]
-
-        // Clone the fields array without options.
-        fields = fields.slice(0, -1)
-      }
+      for (i = 0, j = fields.length; i < j; i++)
+        if (Array.isArray(fields[i])) {
+          includeOptions[i] = fields[i][1]
+          fields[i] = fields[i][0]
+        }
 
       // Ensure that the first level field is in the record.
       return Promise.all(map(records, function (record) {
@@ -2167,7 +2196,7 @@ module.exports = function include (context) {
           options = { fields: {} }
           options.fields[fields[0]] = true
 
-          return adapter.find(type, [ record[primaryKey] ], options, meta)
+          return transaction.find(type, [ record[primaryKey] ], options, meta)
           .then(function (records) { return records[0] })
         }
 
@@ -2202,15 +2231,15 @@ module.exports = function include (context) {
               return ids
             }, [])
 
-            if (index === fields.length - 1)
-              currentOptions = includeOptions
+            if (index in includeOptions)
+              currentOptions = includeOptions[index]
             else {
               currentOptions = { fields: {} }
               currentOptions.fields[fields[index + 1]] = true
             }
 
             return currentIds.length ?
-              adapter.find(currentType, currentIds, currentOptions, meta) :
+              transaction.find(currentType, currentIds, currentOptions, meta) :
               []
           })
         }, Promise.resolve(records))
@@ -2278,9 +2307,10 @@ function matchId (id) {
   }
 }
 
-},{"../common/array/find":8,"../common/array/map":10,"../common/array/reduce":12,"../common/errors":20,"../common/keys":24}],35:[function(require,module,exports){
+},{"../common/array/find":8,"../common/array/map":10,"../common/array/reduce":12,"../common/errors":20,"../common/keys":24,"../common/promise":27}],36:[function(require,module,exports){
 'use strict'
 
+var promise = require('../common/promise')
 var assign = require('../common/assign')
 var unique = require('../common/array/unique')
 var message = require('../common/message')
@@ -2299,29 +2329,29 @@ var createMethod = methods.create
 
 
 /*!
- * Internal function to dispatch a request.
+ * Internal function to dispatch a request. Must be called in the context of
+ * the Fortune instance.
  *
- * @param {Object} scope
  * @param {Object} options
  * @return {Promise}
  */
-function dispatch (scope, options) {
-  var flows = scope.flows
-  var recordTypes = scope.recordTypes
+function dispatch (options) {
+  var Promise = promise.Promise
+  var flows = this.flows
+  var recordTypes = this.recordTypes
+  var adapter = this.adapter
+
   var context = setDefaults(options)
+  var method = context.request.method
 
   // Start a promise chain.
   return Promise.resolve(context)
 
   .then(function (context) {
-    var method = context.request.method
     var type = context.request.type
     var ids = context.request.ids
     var language = context.request.meta.language
-    var chain, flow, error, i, j
-
-    // Set the language.
-    language = context.request.meta.language
+    var error
 
     // Make sure that IDs are an array of unique values.
     if (ids) context.request.ids = unique(ids)
@@ -2343,6 +2373,13 @@ function dispatch (scope, options) {
       throw new MethodError(
         message('InvalidMethod', language, { method: method }))
 
+    return adapter.beginTransaction()
+  })
+
+  .then(function (transaction) {
+    var chain, flow, i, j
+
+    context.transaction = transaction
     chain = Promise.resolve(context)
     flow = flows[method]
 
@@ -2353,18 +2390,29 @@ function dispatch (scope, options) {
   })
 
   .then(function (context) {
-    var method = context.request.method
-    var response = context.response
-    var payload = response.payload
+    return context.transaction.endTransaction()
+      .then(function () {
+        var method = context.request.method
+        var response = context.response
+        var payload = response.payload
 
-    if (!payload) return new Empty(response)
-    if (method === createMethod) return new Created(response)
+        if (!payload) return new Empty(response)
+        if (method === createMethod) return new Created(response)
 
-    return new OK(response)
+        return new OK(response)
+      })
   })
 
+  // This makes sure to call `endTransaction` before re-throwing the error.
   .catch(function (error) {
-    throw assign(error, context.response)
+    return 'transaction' in context ?
+      context.transaction.endTransaction(error)
+        .then(throwError, throwError) :
+      throwError()
+
+    function throwError () {
+      throw assign(error, context.response)
+    }
   })
 }
 
@@ -2411,10 +2459,11 @@ function setDefaults (options) {
 
 module.exports = dispatch
 
-},{"../common/array/unique":13,"../common/assign":14,"../common/message":25,"../common/methods":26,"../common/response_classes":27,"./create":30,"./delete":31,"./end":32,"./find":33,"./include":34,"./update":36}],36:[function(require,module,exports){
+},{"../common/array/unique":13,"../common/assign":14,"../common/message":25,"../common/methods":26,"../common/promise":27,"../common/response_classes":28,"./create":31,"./delete":32,"./end":33,"./find":34,"./include":35,"./update":37}],37:[function(require,module,exports){
 'use strict'
 
 var deepEqual = require('../common/deep_equal')
+var promise = require('../common/promise')
 var assign = require('../common/assign')
 var clone = require('../common/clone')
 var validateRecords = require('./validate_records')
@@ -2424,6 +2473,7 @@ var message = require('../common/message')
 var applyUpdate = require('../common/apply_update')
 
 var updateHelpers = require('./update_helpers')
+var scrubDenormalizedUpdates = updateHelpers.scrubDenormalizedUpdates
 var getUpdate = updateHelpers.getUpdate
 var addId = updateHelpers.addId
 var removeId = updateHelpers.removeId
@@ -2444,6 +2494,8 @@ var linkKey = constants.link
 var inverseKey = constants.inverse
 var isArrayKey = constants.isArray
 var denormalizedInverseKey = constants.denormalizedInverse
+var updateRecordKey = constants.updateRecord
+var linkedHashKey = constants.linkedHash
 
 
 /**
@@ -2453,16 +2505,12 @@ var denormalizedInverseKey = constants.denormalizedInverse
  * @return {Promise}
  */
 module.exports = function (context) {
+  var Promise = promise.Promise
   var self = this
+  var denormalizedFields = self.denormalizedFields
   var adapter = self.adapter
   var recordTypes = self.recordTypes
   var hooks = self.hooks
-
-  // Keyed by update, valued by record.
-  var updateMap = new WeakMap()
-
-  // Keyed by update, valued by hash of linked records.
-  var linkedMap = new WeakMap()
 
   var relatedUpdates = {}
   var hookedUpdates = []
@@ -2481,6 +2529,7 @@ module.exports = function (context) {
 
     type = context.request.type
     meta = context.request.meta
+    transaction = context.transaction
     language = meta.language
 
     fields = recordTypes[type]
@@ -2498,13 +2547,7 @@ module.exports = function (context) {
         }
     }
 
-    return adapter.beginTransaction()
-  })
-
-  .then(function (result) {
-    context.transaction = transaction = result
-
-    return adapter.find(type, map(updates, function (update) {
+    return transaction.find(type, map(updates, function (update) {
       return update[primaryKey]
     }), null, meta)
   })
@@ -2543,7 +2586,7 @@ module.exports = function (context) {
         }
 
         hookedUpdates.push(update)
-        updateMap.set(update, record)
+        Object.defineProperty(update, updateRecordKey, { value: record })
 
         // Shallow clone the record.
         record = assign({}, record)
@@ -2559,9 +2602,9 @@ module.exports = function (context) {
         enforce(type, record, fields, meta)
 
         // Ensure referential integrity.
-        return checkLinks.call(self, record, fields, links, meta)
+        return checkLinks.call(self, transaction, record, fields, links, meta)
         .then(function (linked) {
-          linkedMap.set(update, linked)
+          Object.defineProperty(update, linkedHashKey, { value: linked })
           return record
         })
       })
@@ -2613,8 +2656,8 @@ module.exports = function (context) {
         if (!relatedUpdates[linkedType]) relatedUpdates[linkedType] = []
         if (!idCache[linkedType]) idCache[linkedType] = {}
 
-        record = updateMap.get(update)
-        linked = linkedMap.get(update)
+        record = update[updateRecordKey]
+        linked = update[linkedHashKey]
 
         // Replacing a link field is pretty complicated.
         if (update.replace && update.replace.hasOwnProperty(field)) {
@@ -2750,22 +2793,14 @@ module.exports = function (context) {
   })
 
   .then(function () {
-    return transaction.endTransaction()
-  })
-
-  // This makes sure to call `endTransaction` before re-throwing the error.
-  .catch(function (error) {
-    if (transaction) transaction.endTransaction(error)
-    throw error
-  })
-
-  .then(function () {
     var eventData = {}, linkedType
 
     eventData[updateMethod] = {}
     eventData[updateMethod][type] = hookedUpdates
 
     for (linkedType in relatedUpdates) {
+      scrubDenormalizedUpdates(relatedUpdates[linkedType], denormalizedFields)
+
       if (!relatedUpdates[linkedType].length) continue
 
       if (linkedType !== type)
@@ -2815,7 +2850,7 @@ function dropFields (update, fields) {
     if (!fields.hasOwnProperty(field)) delete update.push[field]
 }
 
-},{"../common/apply_update":6,"../common/array/find":8,"../common/array/includes":9,"../common/array/map":10,"../common/assign":14,"../common/clone":17,"../common/constants":18,"../common/deep_equal":19,"../common/errors":20,"../common/message":25,"../record_type/enforce":41,"./check_links":29,"./update_helpers":37,"./validate_records":38}],37:[function(require,module,exports){
+},{"../common/apply_update":6,"../common/array/find":8,"../common/array/includes":9,"../common/array/map":10,"../common/assign":14,"../common/clone":17,"../common/constants":18,"../common/deep_equal":19,"../common/errors":20,"../common/message":25,"../common/promise":27,"../record_type/enforce":42,"./check_links":30,"./update_helpers":38,"./validate_records":39}],38:[function(require,module,exports){
 'use strict'
 
 var find = require('../common/array/find')
@@ -2870,7 +2905,32 @@ exports.removeId = function (id, update, field, isArray) {
   update.replace[field] = null
 }
 
-},{"../common/array/find":8,"../common/keys":24}],38:[function(require,module,exports){
+
+// Remove denormalized fields from appearing in updates on change events.
+exports.scrubDenormalizedUpdates = function (updates, denormalizedFields) {
+  var i, update, operation, field
+
+  // Iterate in reverse, so we can easily remove indices in the array.
+  for (i = updates.length; i--;) {
+    update = updates[i]
+
+    for (operation in update) {
+      if (operation === primaryKey) continue
+
+      for (field in update[operation])
+        if (field in denormalizedFields)
+          delete update[operation][field]
+
+      if (!Object.keys(update[operation]).length)
+        delete update[operation]
+    }
+
+    // If only the primary key is present, then remove the entire update.
+    if (Object.keys(update).length === 1) updates.splice(i, 1)
+  }
+}
+
+},{"../common/array/find":8,"../common/keys":24}],39:[function(require,module,exports){
 'use strict'
 
 var message = require('../common/message')
@@ -2941,12 +3001,12 @@ module.exports = function validateRecords (records, fields, links, meta) {
   }
 }
 
-},{"../common/errors":20,"../common/keys":24,"../common/message":25}],39:[function(require,module,exports){
+},{"../common/errors":20,"../common/keys":24,"../common/message":25}],40:[function(require,module,exports){
 'use strict'
 
 window.fortune = require('./')
 
-},{"./":40}],40:[function(require,module,exports){
+},{"./":41}],41:[function(require,module,exports){
 'use strict'
 
 var EventLite = require('event-lite')
@@ -2956,6 +3016,7 @@ var memoryAdapter = require('./adapter/adapters/memory')
 var AdapterSingleton = require('./adapter/singleton')
 var validate = require('./record_type/validate')
 var ensureTypes = require('./record_type/ensure_types')
+var promise = require('./common/promise')
 var dispatch = require('./dispatch')
 var middlewares = dispatch.middlewares
 
@@ -2965,9 +3026,6 @@ var common = require('./common')
 var assign = common.assign
 var methods = common.methods
 var events = common.events
-
-// Using this later to check for keys in Object.prototype.
-var plainObject = {}
 
 
 /**
@@ -2985,6 +3043,8 @@ var plainObject = {}
  * - `message`: a function which accepts the arguments (`id`, `language`,
  *   `data`). It has properties keyed by two-letter language codes, which by
  *   default includes only `en`.
+ * - `Promise`: assign this to set the Promise implementation that Fortune
+ *   will use.
  */
 function Fortune (recordTypes, options) {
   if (!(this instanceof Fortune))
@@ -3192,6 +3252,7 @@ Fortune.prototype = new EventLite()
  */
 Fortune.prototype.constructor = function Fortune (recordTypes, options) {
   var self = this
+  var plainObject = {}
   var adapter, method, stack, flows, type, hooks, i, j
 
   if (recordTypes === void 0) recordTypes = {}
@@ -3279,11 +3340,10 @@ Fortune.prototype.constructor = function Fortune (recordTypes, options) {
  * - `ids`: An array of IDs. Used for `find` and `delete` methods only. This is
  *   optional for the `find` method.
  *
- * - `include`: A 2-dimensional array specifying links to include. The first
- *   dimension is a list, the second dimension is depth. For example:
- *   `[['comments'], ['comments', 'author', { ... }]]`. The last item within
- *   the list may be an `options` object, useful for specifying how the
- *   included records should appear. Optional.
+ * - `include`: A 3-dimensional array specifying links to include. The first
+ *   dimension is a list, the second dimension is depth, and the third
+ *   dimension is an optional tuple with field and query options. For example:
+ *   `[['comments'], ['comments', ['author', { ... }]]]`.
  *
  * - `options`: Exactly the same as the [`find` method](#adapter-find)
  *   options in the adapter. These options do not apply on methods other than
@@ -3315,10 +3375,11 @@ Fortune.prototype.constructor = function Fortune (recordTypes, options) {
 Fortune.prototype.request = function (options) {
   var self = this
   var connectionStatus = self.connectionStatus
+  var Promise = promise.Promise
 
   if (connectionStatus === 0)
     return self.connect()
-    .then(function () { return dispatch(self, options) })
+    .then(function () { return dispatch.call(self, options) })
 
   else if (connectionStatus === 1)
     return new Promise(function (resolve, reject) {
@@ -3327,11 +3388,11 @@ Fortune.prototype.request = function (options) {
         reject(new Error('Connection failed.'))
       })
       self.once(events.connect, function () {
-        resolve(dispatch(self, options))
+        resolve(dispatch.call(self, options))
       })
     })
 
-  return dispatch(self, options)
+  return dispatch.call(self, options)
 }
 
 
@@ -3347,16 +3408,15 @@ Fortune.prototype.request = function (options) {
  * @param {Object} [meta]
  * @return {Promise}
  */
-Fortune.prototype.find = function () {
-  var options = { method: methods.find, type: arguments[0] }
+Fortune.prototype.find = function (type, ids, options, include, meta) {
+  var obj = { method: methods.find, type: type }
 
-  if (arguments[1] != null) options.ids = Array.isArray(arguments[1]) ?
-    arguments[1] : [ arguments[1] ]
-  if (arguments[2] != null) options.options = arguments[2]
-  if (arguments[3] != null) options.include = arguments[3]
-  if (arguments[4] != null) options.meta = arguments[4]
+  if (ids) obj.ids = Array.isArray(ids) ? ids : [ ids ]
+  if (options) obj.options = options
+  if (include) obj.include = include
+  if (meta) obj.meta = meta
 
-  return this.request(options)
+  return this.request(obj)
 }
 
 
@@ -3371,12 +3431,12 @@ Fortune.prototype.find = function () {
  * @param {Object} [meta]
  * @return {Promise}
  */
-Fortune.prototype.create = function () {
-  var options = { method: methods.create, type: arguments[0],
-    payload: Array.isArray(arguments[1]) ? arguments[1] : [ arguments[1] ] }
+Fortune.prototype.create = function (type, records, include, meta) {
+  var options = { method: methods.create, type: type,
+    payload: Array.isArray(records) ? records : [ records ] }
 
-  if (arguments[2] != null) options.include = arguments[2]
-  if (arguments[3] != null) options.meta = arguments[3]
+  if (include) options.include = include
+  if (meta) options.meta = meta
 
   return this.request(options)
 }
@@ -3394,12 +3454,12 @@ Fortune.prototype.create = function () {
  * @param {Object} [meta]
  * @return {Promise}
  */
-Fortune.prototype.update = function () {
-  var options = { method: methods.update, type: arguments[0],
-    payload: Array.isArray(arguments[1]) ? arguments[1] : [ arguments[1] ] }
+Fortune.prototype.update = function (type, updates, include, meta) {
+  var options = { method: methods.update, type: type,
+    payload: Array.isArray(updates) ? updates : [ updates ] }
 
-  if (arguments[2] != null) options.include = arguments[2]
-  if (arguments[3] != null) options.meta = arguments[3]
+  if (include) options.include = include
+  if (meta) options.meta = meta
 
   return this.request(options)
 }
@@ -3416,13 +3476,12 @@ Fortune.prototype.update = function () {
  * @param {Object} [meta]
  * @return {Promise}
  */
-Fortune.prototype.delete = function () {
-  var options = { method: methods.delete, type: arguments[0] }
+Fortune.prototype.delete = function (type, ids, include, meta) {
+  var options = { method: methods.delete, type: type }
 
-  if (arguments[1] != null) options.ids = Array.isArray(arguments[1]) ?
-    arguments[1] : [ arguments[1] ]
-  if (arguments[2] != null) options.include = arguments[2]
-  if (arguments[3] != null) options.meta = arguments[3]
+  if (ids) options.ids = Array.isArray(ids) ? ids : [ ids ]
+  if (include) options.include = include
+  if (meta) options.meta = meta
 
   return this.request(options)
 }
@@ -3438,6 +3497,7 @@ Fortune.prototype.delete = function () {
  */
 Fortune.prototype.connect = function () {
   var self = this
+  var Promise = promise.Promise
 
   if (self.connectionStatus === 1)
     return Promise.reject(new Error('Connection is in progress.'))
@@ -3448,7 +3508,11 @@ Fortune.prototype.connect = function () {
   self.connectionStatus = 1
 
   return new Promise(function (resolve, reject) {
-    ensureTypes(self.recordTypes)
+    Object.defineProperty(self, 'denormalizedFields', {
+      value: ensureTypes(self.recordTypes),
+      writable: true,
+      configurable: true
+    })
 
     self.adapter.connect().then(function () {
       self.connectionStatus = 2
@@ -3471,6 +3535,7 @@ Fortune.prototype.connect = function () {
  */
 Fortune.prototype.disconnect = function () {
   var self = this
+  var Promise = promise.Promise
 
   if (self.connectionStatus !== 2)
     return Promise.reject(new Error('Instance has not been connected.'))
@@ -3509,6 +3574,18 @@ assign(Fortune, {
 })
 
 
+// Set the `Promise` property.
+Object.defineProperty(Fortune, 'Promise', {
+  enumerable: true,
+  get: function () {
+    return promise.Promise
+  },
+  set: function (value) {
+    promise.Promise = value
+  }
+})
+
+
 // Internal helper function.
 function bindMiddleware (scope, method) {
   return function (x) {
@@ -3519,7 +3596,7 @@ function bindMiddleware (scope, method) {
 
 module.exports = Fortune
 
-},{"./adapter":4,"./adapter/adapters/memory":3,"./adapter/singleton":5,"./common":23,"./dispatch":35,"./record_type/ensure_types":42,"./record_type/validate":43,"event-lite":47}],41:[function(require,module,exports){
+},{"./adapter":4,"./adapter/adapters/memory":3,"./adapter/singleton":5,"./common":23,"./common/promise":27,"./dispatch":36,"./record_type/ensure_types":43,"./record_type/validate":44,"event-lite":48}],42:[function(require,module,exports){
 (function (Buffer){
 'use strict'
 
@@ -3660,7 +3737,7 @@ function matchId (a) {
 }
 
 }).call(this,require("buffer").Buffer)
-},{"../common/array/find":8,"../common/errors":20,"../common/keys":24,"../common/message":25,"buffer":45}],42:[function(require,module,exports){
+},{"../common/array/find":8,"../common/errors":20,"../common/keys":24,"../common/message":25,"buffer":46}],43:[function(require,module,exports){
 'use strict'
 
 var keys = require('../common/keys')
@@ -3681,8 +3758,10 @@ var denormalizedPostfix = '_inverse'
  * valid. Also assign denormalized inverse fields.
  *
  * @param {Object} types
+ * @return {Object}
  */
 module.exports = function ensureTypes (types) {
+  var denormalizedFields = {}
   var type, field, definition, linkedFields,
     denormalizedField, denormalizedDefinition
 
@@ -3725,6 +3804,8 @@ module.exports = function ensureTypes (types) {
       denormalizedField = denormalizedPrefix + type +
         denormalizedDelimiter + field + denormalizedPostfix
 
+      denormalizedFields[denormalizedField] = true
+
       Object.defineProperty(definition, inverseKey, {
         value: denormalizedField
       })
@@ -3739,13 +3820,16 @@ module.exports = function ensureTypes (types) {
         value: denormalizedDefinition
       })
     }
+
+  return denormalizedFields
 }
 
-},{"../common/keys":24}],43:[function(require,module,exports){
+},{"../common/keys":24}],44:[function(require,module,exports){
 (function (Buffer){
 'use strict'
 
 var find = require('../common/array/find')
+var map = require('../common/array/map')
 
 var keys = require('../common/keys')
 var primaryKey = keys.primary
@@ -3754,8 +3838,11 @@ var linkKey = keys.link
 var inverseKey = keys.inverse
 var isArrayKey = keys.isArray
 
-var nativeTypes = [ String, Number, Boolean, Date, Object, Buffer ]
 var plainObject = {}
+var nativeTypes = [ String, Number, Boolean, Date, Object, Buffer ]
+var stringifiedTypes = map(nativeTypes, function (nativeType) {
+  return nativeType.name.toLowerCase()
+})
 
 
 /**
@@ -3792,6 +3879,10 @@ function validateField (fields, key) {
   if (key === primaryKey)
     throw new Error('Can not define primary key "' + primaryKey + '".')
 
+  if (~stringifiedTypes.indexOf(key.toLowerCase()))
+    throw new Error('Can not define "' + key + '", which conflicts with a ' +
+      'native type.')
+
   if (key in plainObject)
     throw new Error('Can not define field name "' + key +
       '" which is in Object.prototype.')
@@ -3805,15 +3896,17 @@ function validateField (fields, key) {
       '" on "' + key + '".')
 
   if (value[typeKey]) {
-    if (!find(nativeTypes, function (type) {
-      return type === value[typeKey]
-    }) && typeof value[typeKey] !== 'function')
-      throw new Error('The "' + typeKey + '" on "' + key + '" is invalid.')
+    if (typeof value[typeKey] === 'string')
+      value[typeKey] = nativeTypes[
+        stringifiedTypes.indexOf(value[typeKey].toLowerCase())]
 
-    if (typeof value[typeKey] === 'function' &&
-      !find(nativeTypes, function (type) {
-        return type === value[typeKey].prototype.constructor
-      }))
+    if (typeof value[typeKey] !== 'function')
+      throw new Error('The "' + typeKey + '" on "' + key +
+        '" must be a function.')
+
+    if (!find(nativeTypes, function (type) {
+      return type === value[typeKey].prototype.constructor
+    }))
       throw new Error('The "' + typeKey + '" on "' + key + '" must inherit ' +
         'from a valid native type.')
 
@@ -3871,7 +3964,7 @@ function castShorthand (value) {
 }
 
 }).call(this,require("buffer").Buffer)
-},{"../common/array/find":8,"../common/keys":24,"buffer":45}],44:[function(require,module,exports){
+},{"../common/array/find":8,"../common/array/map":10,"../common/keys":24,"buffer":46}],45:[function(require,module,exports){
 'use strict'
 
 exports.byteLength = byteLength
@@ -3987,7 +4080,7 @@ function fromByteArray (uint8) {
   return parts.join('')
 }
 
-},{}],45:[function(require,module,exports){
+},{}],46:[function(require,module,exports){
 /*!
  * The buffer module from node.js, for the browser.
  *
@@ -4242,8 +4335,8 @@ function fromObject (obj) {
   }
 
   if (obj) {
-    if (ArrayBuffer.isView(obj) || 'length' in obj) {
-      if (typeof obj.length !== 'number' || isnan(obj.length)) {
+    if (isArrayBufferView(obj) || 'length' in obj) {
+      if (typeof obj.length !== 'number' || numberIsNaN(obj.length)) {
         return createBuffer(0)
       }
       return fromArrayLike(obj)
@@ -4354,7 +4447,7 @@ function byteLength (string, encoding) {
   if (Buffer.isBuffer(string)) {
     return string.length
   }
-  if (ArrayBuffer.isView(string) || string instanceof ArrayBuffer) {
+  if (isArrayBufferView(string) || string instanceof ArrayBuffer) {
     return string.byteLength
   }
   if (typeof string !== 'string') {
@@ -4620,7 +4713,7 @@ function bidirectionalIndexOf (buffer, val, byteOffset, encoding, dir) {
     byteOffset = -0x80000000
   }
   byteOffset = +byteOffset  // Coerce to Number.
-  if (isNaN(byteOffset)) {
+  if (numberIsNaN(byteOffset)) {
     // byteOffset: it it's undefined, null, NaN, "foo", etc, search whole buffer
     byteOffset = dir ? 0 : (buffer.length - 1)
   }
@@ -4751,7 +4844,7 @@ function hexWrite (buf, string, offset, length) {
   }
   for (var i = 0; i < length; ++i) {
     var parsed = parseInt(string.substr(i * 2, 2), 16)
-    if (isNaN(parsed)) return i
+    if (numberIsNaN(parsed)) return i
     buf[offset + i] = parsed
   }
   return i
@@ -5554,7 +5647,7 @@ var INVALID_BASE64_RE = /[^+/0-9A-Za-z-_]/g
 
 function base64clean (str) {
   // Node strips out invalid characters like \n and \t from the string, base64-js does not
-  str = stringtrim(str).replace(INVALID_BASE64_RE, '')
+  str = str.trim().replace(INVALID_BASE64_RE, '')
   // Node converts strings with length < 2 to ''
   if (str.length < 2) return ''
   // Node allows for non-padded base64 strings (missing trailing ===), base64-js does not
@@ -5562,11 +5655,6 @@ function base64clean (str) {
     str = str + '='
   }
   return str
-}
-
-function stringtrim (str) {
-  if (str.trim) return str.trim()
-  return str.replace(/^\s+|\s+$/g, '')
 }
 
 function toHex (n) {
@@ -5691,11 +5779,16 @@ function blitBuffer (src, dst, offset, length) {
   return i
 }
 
-function isnan (val) {
-  return val !== val // eslint-disable-line no-self-compare
+// Node 0.10 supports `ArrayBuffer` but lacks `ArrayBuffer.isView`
+function isArrayBufferView (obj) {
+  return (typeof ArrayBuffer.isView === 'function') && ArrayBuffer.isView(obj)
 }
 
-},{"base64-js":44,"ieee754":48}],46:[function(require,module,exports){
+function numberIsNaN (obj) {
+  return obj !== obj // eslint-disable-line no-self-compare
+}
+
+},{"base64-js":45,"ieee754":49}],47:[function(require,module,exports){
 'use strict'
 
 var hasCaptureStackTrace = 'captureStackTrace' in Error
@@ -5754,7 +5847,7 @@ function nonEnumerableProperty (value) {
   }
 }
 
-},{}],47:[function(require,module,exports){
+},{}],48:[function(require,module,exports){
 /**
  * event-lite.js - Light-weight EventEmitter (less than 1KB when gzipped)
  *
@@ -5936,7 +6029,7 @@ function EventLite() {
 
 })(EventLite);
 
-},{}],48:[function(require,module,exports){
+},{}],49:[function(require,module,exports){
 exports.read = function (buffer, offset, isLE, mLen, nBytes) {
   var e, m
   var eLen = nBytes * 8 - mLen - 1
@@ -6022,7 +6115,7 @@ exports.write = function (buffer, value, offset, isLE, mLen, nBytes) {
   buffer[offset + i - d] |= s * 128
 }
 
-},{}],49:[function(require,module,exports){
+},{}],50:[function(require,module,exports){
 /*!
  * Determine if an object is a Buffer
  *
@@ -6045,4 +6138,4 @@ function isSlowBuffer (obj) {
   return typeof obj.readFloatLE === 'function' && typeof obj.slice === 'function' && isBuffer(obj.slice(0, 0))
 }
 
-},{}]},{},[39]);
+},{}]},{},[40]);
