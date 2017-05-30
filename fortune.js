@@ -1,6 +1,6 @@
 /*!
  * Fortune.js
- * Version 5.2.3
+ * Version 5.2.4
  * MIT License
  * http://fortune.js.org
  */
@@ -2241,10 +2241,11 @@ module.exports = function include (context) {
 
             if (index in includeOptions)
               currentOptions = includeOptions[index]
-            else {
+            else if (index < fields.length - 1) {
               currentOptions = { fields: {} }
               currentOptions.fields[fields[index + 1]] = true
             }
+            else currentOptions = null
 
             return currentIds.length ?
               transaction.find(currentType, currentIds, currentOptions, meta) :
