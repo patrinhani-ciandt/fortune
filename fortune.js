@@ -1,6 +1,6 @@
 /*!
  * Fortune.js
- * Version 5.2.4
+ * Version 5.2.5
  * MIT License
  * http://fortune.js.org
  */
@@ -1374,9 +1374,16 @@ exports.failure = constants.failure
 },{"./constants":18}],22:[function(require,module,exports){
 'use strict'
 
+var ceiling = Math.pow(2, 32)
+
 module.exports = function generateId () {
-  return Date.now() + '-' +
-    ('00000000' + Math.floor(Math.random() * Math.pow(2, 32)).toString(16))
+  // Run two iterations, so 8 + 8 = 16 digit string.
+  return generate() + generate()
+}
+
+// Make 8-digit hex string.
+function generate () {
+  return ('00000000' + Math.floor(Math.random() * ceiling).toString(16))
     .slice(-8)
 }
 
