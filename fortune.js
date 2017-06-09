@@ -1,6 +1,6 @@
 /*!
  * Fortune.js
- * Version 5.2.5
+ * Version 5.2.6
  * MIT License
  * http://fortune.js.org
  */
@@ -1374,17 +1374,22 @@ exports.failure = constants.failure
 },{"./constants":18}],22:[function(require,module,exports){
 'use strict'
 
-var ceiling = Math.pow(2, 32)
+// Modified base64 with "+" as "-" and "/" as "_".
+var charset =
+  'ABCDEFGHIJKLMNOPQRSTUVWXYZ' +
+  'abcdefghijklmnopqrstuvwxyz' +
+  '0123456789-_'
+
+var charsetLength = charset.length
+var keyLength = 15
 
 module.exports = function generateId () {
-  // Run two iterations, so 8 + 8 = 16 digit string.
-  return generate() + generate()
-}
+  var i, array = []
 
-// Make 8-digit hex string.
-function generate () {
-  return ('00000000' + Math.floor(Math.random() * ceiling).toString(16))
-    .slice(-8)
+  for (i = 0; i < keyLength; i++)
+    array.push(charset.charAt(Math.floor(Math.random() * charsetLength)))
+
+  return array.join('')
 }
 
 },{}],23:[function(require,module,exports){
@@ -1778,7 +1783,7 @@ module.exports = function (context) {
 
   .then(function (results) {
     return Promise.all(map(results, function (record, i) {
-      if (record) records[i] = record
+      if (record && typeof record === 'object') records[i] = record
       else record = records[i]
 
       // Enforce the fields.
@@ -2589,7 +2594,7 @@ module.exports = function (context) {
       return Promise.resolve(hasHook ?
         hook[0](context, record, update) : update)
       .then(function (result) {
-        if (result) update = result
+        if (result && typeof result === 'object') update = result
 
         if (hasHook) {
           // Check if the update has been modified or not.
