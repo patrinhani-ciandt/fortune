@@ -1,6 +1,6 @@
 /*!
  * Fortune.js
- * Version 5.2.6
+ * Version 5.2.7
  * MIT License
  * http://fortune.js.org
  */
@@ -1381,7 +1381,9 @@ var charset =
   '0123456789-_'
 
 var charsetLength = charset.length
-var keyLength = 15
+
+// Should be a multiple of 3 to avoid padding characters.
+var keyLength = 3 * 5
 
 module.exports = function generateId () {
   var i, array = []
@@ -1486,7 +1488,7 @@ Object.defineProperty(message, 'defaultLanguage', {
 message.en = {
   'GenericError': 'An internal error occurred.',
 
-   // Various errors.
+  // Various errors.
   'MalformedRequest': 'The request was malformed.',
   'InvalidBody': 'The request body is invalid.',
   'SerializerNotFound': 'The serializer for "{id}" does not exist.',
@@ -1653,7 +1655,7 @@ function checkLinks (transaction, record, fields, links, meta) {
   return Promise.all(map(links, function (field) {
     var ids = Array.isArray(record[field]) ? record[field] :
       !record.hasOwnProperty(field) || record[field] === null ?
-      [] : [ record[field] ]
+        [] : [ record[field] ]
     var fieldLink = fields[field][linkKey]
     var fieldInverse = fields[field][inverseKey]
     var findOptions = { fields: {} }
@@ -1666,39 +1668,39 @@ function checkLinks (transaction, record, fields, links, meta) {
 
       return transaction.find(fieldLink, ids, findOptions, meta)
 
-      .then(function (records) {
-        var recordIds, i, j
+        .then(function (records) {
+          var recordIds, i, j
 
-        if (enforceLinks) {
-          recordIds = unique(map(records, function (record) {
-            return record[primaryKey]
-          }))
+          if (enforceLinks) {
+            recordIds = unique(map(records, function (record) {
+              return record[primaryKey]
+            }))
 
-          for (i = 0, j = ids.length; i < j; i++)
-            if (!includes(recordIds, ids[i]))
-              return reject(new BadRequestError(
-                message('RelatedRecordNotFound', meta.language,
-                  { field: field })
-              ))
-        }
+            for (i = 0, j = ids.length; i < j; i++)
+              if (!includes(recordIds, ids[i]))
+                return reject(new BadRequestError(
+                  message('RelatedRecordNotFound', meta.language,
+                    { field: field })
+                ))
+          }
 
-        return resolve(records)
-      })
+          return resolve(records)
+        })
     })
   }))
 
-  .then(function (partialRecords) {
-    var object = {}, records, i, j
+    .then(function (partialRecords) {
+      var object = {}, records, i, j
 
-    for (i = 0, j = partialRecords.length; i < j; i++) {
-      records = partialRecords[i]
+      for (i = 0, j = partialRecords.length; i < j; i++) {
+        records = partialRecords[i]
 
-      if (records) object[links[i]] =
+        if (records) object[links[i]] =
         fields[links[i]][isArrayKey] ? records : records[0]
-    }
+      }
 
-    return object
-  })
+      return object
+    })
 }
 
 },{"../common/array/includes":9,"../common/array/map":10,"../common/array/unique":13,"../common/errors":20,"../common/keys":24,"../common/message":25,"../common/promise":27}],31:[function(require,module,exports){
@@ -1749,136 +1751,136 @@ module.exports = function (context) {
   // Start a promise chain.
   return Promise.resolve(context.request.payload)
 
-  .then(function (payload) {
-    var i, j, field
+    .then(function (payload) {
+      var i, j, field
 
-    records = payload
+      records = payload
 
-    if (!records || !records.length)
-      throw new BadRequestError(message('CreateRecordsInvalid', language))
+      if (!records || !records.length)
+        throw new BadRequestError(message('CreateRecordsInvalid', language))
 
-    type = context.request.type
-    meta = context.request.meta
-    transaction = context.transaction
-    language = meta.language
+      type = context.request.type
+      meta = context.request.meta
+      transaction = context.transaction
+      language = meta.language
 
-    hook = hooks[type]
-    fields = recordTypes[type]
+      hook = hooks[type]
+      fields = recordTypes[type]
 
-    for (field in fields) {
-      if (linkKey in fields[field])
-        links.push(field)
+      for (field in fields) {
+        if (linkKey in fields[field])
+          links.push(field)
 
-      // Delete denormalized inverse fields.
-      if (denormalizedInverseKey in fields[field])
-        for (i = 0, j = records.length; i < j; i++)
-          delete records[i][field]
-    }
+        // Delete denormalized inverse fields.
+        if (denormalizedInverseKey in fields[field])
+          for (i = 0, j = records.length; i < j; i++)
+            delete records[i][field]
+      }
 
-    return typeof hook[0] === 'function' ?
-      Promise.all(map(records, function (record) {
-        return hook[0](context, record)
-      })) : records
-  })
-
-  .then(function (results) {
-    return Promise.all(map(results, function (record, i) {
-      if (record && typeof record === 'object') records[i] = record
-      else record = records[i]
-
-      // Enforce the fields.
-      enforce(type, record, fields, meta)
-
-      // Ensure referential integrity.
-      return checkLinks.call(self, transaction, record, fields, links, meta)
-    }))
-  })
-
-  .then(function () {
-    validateRecords.call(self, records, fields, links, meta)
-    return transaction.create(type, records, meta)
-  })
-
-  .then(function (createdRecords) {
-    var i, j, k, l, m, n, record, field, inverseField,
-      linkedType, linkedIsArray, linkedIds, id
-
-    // Update inversely linked records on created records.
-    // Trying to batch updates to be as few as possible.
-    var idCache = {}
-
-    // Adapter must return something.
-    if (!createdRecords.length)
-      throw new BadRequestError(message('CreateRecordsFail', language))
-
-    records = createdRecords
-
-    Object.defineProperty(context.response, 'records', {
-      configurable: true,
-      value: records
+      return typeof hook[0] === 'function' ?
+        Promise.all(map(records, function (record) {
+          return hook[0](context, record)
+        })) : records
     })
 
-    // Iterate over each record to generate updates object.
-    for (i = 0, j = records.length; i < j; i++) {
-      record = records[i]
+    .then(function (results) {
+      return Promise.all(map(results, function (record, i) {
+        if (record && typeof record === 'object') records[i] = record
+        else record = records[i]
 
-      // Each created record must have an ID.
-      if (!(primaryKey in record))
-        throw new Error(message('CreateRecordMissingID', language))
+        // Enforce the fields.
+        enforce(type, record, fields, meta)
 
-      for (k = 0, l = links.length; k < l; k++) {
-        field = links[k]
-        inverseField = fields[field][inverseKey]
+        // Ensure referential integrity.
+        return checkLinks.call(self, transaction, record, fields, links, meta)
+      }))
+    })
 
-        if (!record.hasOwnProperty(field) || !inverseField) continue
+    .then(function () {
+      validateRecords.call(self, records, fields, links, meta)
+      return transaction.create(type, records, meta)
+    })
 
-        linkedType = fields[field][linkKey]
-        linkedIsArray =
+    .then(function (createdRecords) {
+      var i, j, k, l, m, n, record, field, inverseField,
+        linkedType, linkedIsArray, linkedIds, id
+
+      // Update inversely linked records on created records.
+      // Trying to batch updates to be as few as possible.
+      var idCache = {}
+
+      // Adapter must return something.
+      if (!createdRecords.length)
+        throw new BadRequestError(message('CreateRecordsFail', language))
+
+      records = createdRecords
+
+      Object.defineProperty(context.response, 'records', {
+        configurable: true,
+        value: records
+      })
+
+      // Iterate over each record to generate updates object.
+      for (i = 0, j = records.length; i < j; i++) {
+        record = records[i]
+
+        // Each created record must have an ID.
+        if (!(primaryKey in record))
+          throw new Error(message('CreateRecordMissingID', language))
+
+        for (k = 0, l = links.length; k < l; k++) {
+          field = links[k]
+          inverseField = fields[field][inverseKey]
+
+          if (!record.hasOwnProperty(field) || !inverseField) continue
+
+          linkedType = fields[field][linkKey]
+          linkedIsArray =
           recordTypes[linkedType][inverseField][isArrayKey]
-        linkedIds = Array.isArray(record[field]) ?
-          record[field] : [ record[field] ]
+          linkedIds = Array.isArray(record[field]) ?
+            record[field] : [ record[field] ]
 
-        // Do some initialization.
-        if (!updates[linkedType]) updates[linkedType] = []
-        if (!idCache[linkedType]) idCache[linkedType] = {}
+          // Do some initialization.
+          if (!updates[linkedType]) updates[linkedType] = []
+          if (!idCache[linkedType]) idCache[linkedType] = {}
 
-        for (m = 0, n = linkedIds.length; m < n; m++) {
-          id = linkedIds[m]
-          if (id !== null)
-            addId(record[primaryKey],
-              getUpdate(linkedType, id, updates, idCache),
-              inverseField, linkedIsArray)
+          for (m = 0, n = linkedIds.length; m < n; m++) {
+            id = linkedIds[m]
+            if (id !== null)
+              addId(record[primaryKey],
+                getUpdate(linkedType, id, updates, idCache),
+                inverseField, linkedIsArray)
+          }
         }
       }
-    }
 
-    return Promise.all(map(Object.keys(updates), function (type) {
-      return updates[type].length ?
-        transaction.update(type, updates[type], meta) :
-        null
-    }))
-  })
+      return Promise.all(map(Object.keys(updates), function (type) {
+        return updates[type].length ?
+          transaction.update(type, updates[type], meta) :
+          null
+      }))
+    })
 
-  .then(function () {
-    var eventData = {}, currentType
+    .then(function () {
+      var eventData = {}, currentType
 
-    eventData[createMethod] = {}
-    eventData[createMethod][type] = records
+      eventData[createMethod] = {}
+      eventData[createMethod][type] = records
 
-    for (currentType in updates) {
-      scrubDenormalizedUpdates(updates[currentType], denormalizedFields)
+      for (currentType in updates) {
+        scrubDenormalizedUpdates(updates[currentType], denormalizedFields)
 
-      if (!updates[currentType].length) continue
+        if (!updates[currentType].length) continue
 
-      if (!(updateMethod in eventData)) eventData[updateMethod] = {}
-      eventData[updateMethod][currentType] = updates[currentType]
-    }
+        if (!(updateMethod in eventData)) eventData[updateMethod] = {}
+        eventData[updateMethod][currentType] = updates[currentType]
+      }
 
-    // Summarize changes during the lifecycle of the request.
-    self.emit(changeEvent, eventData)
+      // Summarize changes during the lifecycle of the request.
+      self.emit(changeEvent, eventData)
 
-    return context
-  })
+      return context
+    })
 }
 
 },{"../common/array/map":10,"../common/constants":18,"../common/errors":20,"../common/message":25,"../common/promise":27,"../record_type/enforce":42,"./check_links":30,"./update_helpers":38,"./validate_records":39}],32:[function(require,module,exports){
@@ -1938,93 +1940,93 @@ module.exports = function (context) {
 
   return transaction.find(type, ids, null, meta)
 
-  .then(function (foundRecords) {
-    records = foundRecords
+    .then(function (foundRecords) {
+      records = foundRecords
 
-    if (records.length < ids.length)
-      throw new NotFoundError(message('DeleteRecordsInvalid', language))
+      if (records.length < ids.length)
+        throw new NotFoundError(message('DeleteRecordsInvalid', language))
 
-    Object.defineProperty(context.response, 'records', {
-      configurable: true,
-      value: records
+      Object.defineProperty(context.response, 'records', {
+        configurable: true,
+        value: records
+      })
+
+      return typeof hook[0] === 'function' ?
+        Promise.all(map(records, function (record) {
+          return hook[0](context, record)
+        })) : records
     })
 
-    return typeof hook[0] === 'function' ?
-      Promise.all(map(records, function (record) {
-        return hook[0](context, record)
-      })) : records
-  })
+    .then(function () {
+      return transaction.delete(type, ids, meta)
+    })
 
-  .then(function () {
-    return transaction.delete(type, ids, meta)
-  })
+    .then(function (count) {
+      var i, j, k, l, m, n, record, field, id, inverseField,
+        linkedType, linkedIsArray, linkedIds
 
-  .then(function (count) {
-    var i, j, k, l, m, n, record, field, id, inverseField,
-      linkedType, linkedIsArray, linkedIds
+      // Remove all instances of the deleted IDs in all records.
+      var idCache = {}
 
-    // Remove all instances of the deleted IDs in all records.
-    var idCache = {}
+      // Sanity check.
+      if (count < ids.length)
+        throw new Error(message('DeleteRecordsFail', language))
 
-    // Sanity check.
-    if (count < ids.length)
-      throw new Error(message('DeleteRecordsFail', language))
+      // Loop over each record to generate updates object.
+      for (i = 0, j = records.length; i < j; i++) {
+        record = records[i]
+        for (k = 0, l = links.length; k < l; k++) {
+          field = links[k]
+          inverseField = fields[field][inverseKey]
 
-    // Loop over each record to generate updates object.
-    for (i = 0, j = records.length; i < j; i++) {
-      record = records[i]
-      for (k = 0, l = links.length; k < l; k++) {
-        field = links[k]
-        inverseField = fields[field][inverseKey]
+          if (!record.hasOwnProperty(field) || !inverseField) continue
 
-        if (!record.hasOwnProperty(field) || !inverseField) continue
+          linkedType = fields[field][linkKey]
+          linkedIsArray = recordTypes[linkedType][inverseField][isArrayKey]
+          linkedIds = Array.isArray(record[field]) ?
+            record[field] : [ record[field] ]
 
-        linkedType = fields[field][linkKey]
-        linkedIsArray = recordTypes[linkedType][inverseField][isArrayKey]
-        linkedIds = Array.isArray(record[field]) ?
-          record[field] : [ record[field] ]
+          // Do some initialization.
+          if (!updates[linkedType]) updates[linkedType] = []
+          if (!idCache[linkedType]) idCache[linkedType] = {}
 
-        // Do some initialization.
-        if (!updates[linkedType]) updates[linkedType] = []
-        if (!idCache[linkedType]) idCache[linkedType] = {}
-
-        for (m = 0, n = linkedIds.length; m < n; m++) {
-          id = linkedIds[m]
-          if (id !== null)
-            removeId(record[primaryKey],
-              getUpdate(linkedType, id, updates, idCache),
-              inverseField, linkedIsArray)
+          for (m = 0, n = linkedIds.length; m < n; m++) {
+            id = linkedIds[m]
+            if (id !== null)
+              removeId(record[primaryKey],
+                getUpdate(linkedType, id, updates, idCache),
+                inverseField, linkedIsArray)
+          }
         }
       }
-    }
 
-    return Promise.all(map(Object.keys(updates), function (type) {
-      return updates[type].length ?
-        transaction.update(type, updates[type], meta) :
-        null
-    }))
-  })
+      return Promise.all(map(Object.keys(updates), function (type) {
+        return updates[type].length ?
+          transaction.update(type, updates[type], meta) :
+          null
+      }))
+    })
 
-  .then(function () {
-    var eventData = {}, currentType
+    .then(function () {
+      var eventData = {}, currentType
 
-    eventData[deleteMethod] = {}
-    eventData[deleteMethod][type] = ids
+      eventData[deleteMethod] = {}
+      eventData[deleteMethod][type] = ids
 
-    for (currentType in updates) {
-      scrubDenormalizedUpdates(updates[currentType], denormalizedFields)
+      for (currentType in updates) {
+        scrubDenormalizedUpdates(updates[currentType], denormalizedFields)
 
-      if (!updates[currentType].length) continue
+        if (!updates[currentType].length) continue
 
-      if (!(updateMethod in eventData)) eventData[updateMethod] = {}
-      eventData[updateMethod][currentType] = updates[currentType]
-    }
+        if (!(updateMethod in eventData)) eventData[updateMethod] = {}
+        eventData[updateMethod][currentType] = updates[currentType]
+      }
 
-    // Summarize changes during the lifecycle of the request.
-    self.emit(changeEvent, eventData)
+      // Summarize changes during the lifecycle of the request.
+      self.emit(changeEvent, eventData)
 
-    return context
-  })
+      return context
+    })
 }
 
 },{"../common/array/map":10,"../common/constants":18,"../common/errors":20,"../common/message":25,"../common/promise":27,"./update_helpers":38}],33:[function(require,module,exports){
@@ -2059,50 +2061,57 @@ module.exports = function (context) {
       hook[1](context, record) : record)
   }))
 
-  .then(function (updatedRecords) {
-    var includeTypes
-    var i, j
+    .then(function (updatedRecords) {
+      var includeTypes
+      var i, j
 
-    for (i = 0, j = updatedRecords.length; i < j; i++)
-      if (updatedRecords[i]) records[i] = updatedRecords[i]
+      for (i = 0, j = updatedRecords.length; i < j; i++)
+        if (updatedRecords[i]) records[i] = updatedRecords[i]
 
-    if (!include) return void 0
+      if (!include) return void 0
 
-    // The order of the keys and their corresponding indices matter.
-    includeTypes = Object.keys(include)
+      // The order of the keys and their corresponding indices matter.
+      includeTypes = Object.keys(include)
 
-    // Run output hooks per include type.
-    return Promise.all(map(includeTypes, function (includeType) {
-      return Promise.all(map(include[includeType], function (record) {
-        return Promise.resolve(
-          typeof hooks[includeType][1] === 'function' ?
-            hooks[includeType][1](context, record) : record)
+      // Run output hooks per include type.
+      return Promise.all(map(includeTypes, function (includeType) {
+        // This is useful for output hooks to know which type that the current
+        // record belongs to. It is temporary and gets deleted later.
+        request.includeType = includeType
+
+        return Promise.all(map(include[includeType], function (record) {
+          return Promise.resolve(
+            typeof hooks[includeType][1] === 'function' ?
+              hooks[includeType][1](context, record) : record)
+        }))
       }))
-    }))
 
-    .then(function (types) {
-      var i, j, k, l
+        .then(function (types) {
+          var i, j, k, l
 
-      // Assign results of output hooks on includes.
-      for (i = 0, j = types.length; i < j; i++)
-        for (k = 0, l = types[i].length; k < l; k++)
-          if (types[i][k]) include[includeTypes[i]][k] = types[i][k]
+          // Don't need this anymore.
+          delete request.includeType
+
+          // Assign results of output hooks on includes.
+          for (i = 0, j = types.length; i < j; i++)
+            for (k = 0, l = types[i].length; k < l; k++)
+              if (types[i][k]) include[includeTypes[i]][k] = types[i][k]
+        })
+    }) : Promise.resolve())
+
+    .then(function () {
+      context.response.payload = {
+        records: records
+      }
+
+      if (include) context.response.payload.include = include
+
+      // Expose the "count" property so that it is serializable.
+      if (records && 'count' in records)
+        context.response.payload.count = records.count
+
+      return context
     })
-  }) : Promise.resolve())
-
-  .then(function () {
-    context.response.payload = {
-      records: records
-    }
-
-    if (include) context.response.payload.include = include
-
-    // Expose the "count" property so that it is serializable.
-    if (records && 'count' in records)
-      context.response.payload.count = records.count
-
-    return context
-  })
 }
 
 },{"../common/array/map":10,"../common/promise":27}],34:[function(require,module,exports){
@@ -2125,14 +2134,14 @@ module.exports = function (context) {
   if (!type) return context
 
   return transaction.find(type, ids, options, meta)
-  .then(function (records) {
-    Object.defineProperty(context.response, 'records', {
-      configurable: true,
-      value: records
-    })
+    .then(function (records) {
+      Object.defineProperty(context.response, 'records', {
+        configurable: true,
+        value: records
+      })
 
-    return context
-  })
+      return context
+    })
 }
 
 },{}],35:[function(require,module,exports){
@@ -2217,108 +2226,109 @@ module.exports = function include (context) {
           options.fields[fields[0]] = true
 
           return transaction.find(type, [ record[primaryKey] ], options, meta)
-          .then(function (records) { return records[0] })
+            .then(function (records) { return records[0] })
         }
 
         return record
       }))
 
-      .then(function (records) {
+        .then(function (records) {
         // `cursor` refers to the current collection of records.
-        return reduce(fields, function (records, field, index) {
-          return records.then(function (cursor) {
-            currentField = recordTypes[currentType][field]
+          return reduce(fields, function (records, field, index) {
+            return records.then(function (cursor) {
+              currentField = recordTypes[currentType][field]
 
-            if (!currentType || !currentField) return []
-            if (!(linkKey in currentField)) throw new BadRequestError(
-              'The field "' + field + '" does not define a link.')
+              if (!currentType || !currentField) return []
+              if (!(linkKey in currentField)) throw new BadRequestError(
+                'The field "' + field + '" does not define a link.')
 
-            currentCache = {}
-            currentType = currentField[linkKey]
-            currentIds = reduce(cursor, function (ids, record) {
-              var linkedIds = Array.isArray(record[field]) ?
-                record[field] : [ record[field] ]
-              var i, j, id
+              currentCache = {}
+              currentType = currentField[linkKey]
+              currentIds = reduce(cursor, function (ids, record) {
+                var linkedIds = Array.isArray(record[field]) ?
+                  record[field] : [ record[field] ]
+                var i, j, id
 
-              for (i = 0, j = linkedIds.length; i < j; i++) {
-                id = linkedIds[i]
-                if (id && !currentCache[id]) {
-                  currentCache[id] = true
-                  ids.push(id)
+                for (i = 0, j = linkedIds.length; i < j; i++) {
+                  id = linkedIds[i]
+                  if (id && !currentCache[id]) {
+                    currentCache[id] = true
+                    ids.push(id)
+                  }
                 }
+
+                return ids
+              }, [])
+
+              if (index in includeOptions)
+                currentOptions = includeOptions[index]
+              else if (index < fields.length - 1) {
+                currentOptions = { fields: {} }
+                currentOptions.fields[fields[index + 1]] = true
               }
+              else currentOptions = null
 
-              return ids
-            }, [])
-
-            if (index in includeOptions)
-              currentOptions = includeOptions[index]
-            else if (index < fields.length - 1) {
-              currentOptions = { fields: {} }
-              currentOptions.fields[fields[index + 1]] = true
-            }
-            else currentOptions = null
-
-            return currentIds.length ?
-              transaction.find(currentType, currentIds, currentOptions, meta) :
-              []
-          })
-        }, Promise.resolve(records))
-      })
-
-      .then(function (records) {
-        return resolve({
-          type: currentType,
-          ids: currentIds,
-          records: records
+              return currentIds.length ?
+                transaction.find(
+                  currentType, currentIds, currentOptions, meta) :
+                []
+            })
+          }, Promise.resolve(records))
         })
-      }, function (error) {
-        return reject(error)
-      })
+
+        .then(function (records) {
+          return resolve({
+            type: currentType,
+            ids: currentIds,
+            records: records
+          })
+        }, function (error) {
+          return reject(error)
+        })
     })
   }))
 
-  .then(function (containers) {
-    var include = reduce(containers, function (include, container) {
-      var i, j, id, record
+    .then(function (containers) {
+      var include = reduce(containers, function (include, container) {
+        var i, j, id, record
 
-      if (!container.ids.length) return include
+        if (!container.ids.length) return include
 
-      if (!include[container.type])
-        include[container.type] = []
+        if (!include[container.type])
+          include[container.type] = []
 
-      // Only include unique IDs per type.
-      if (!idCache[container.type])
-        idCache[container.type] = {}
+        // Only include unique IDs per type.
+        if (!idCache[container.type])
+          idCache[container.type] = {}
 
-      for (i = 0, j = container.ids.length; i < j; i++) {
-        id = container.ids[i]
+        for (i = 0, j = container.ids.length; i < j; i++) {
+          id = container.ids[i]
 
-        if (idCache[container.type][id]) continue
+          if (idCache[container.type][id]) continue
 
-        record = find(container.records, matchId(id))
+          record = find(container.records, matchId(id))
 
-        if (record) {
-          idCache[container.type][id] = true
-          include[container.type].push(record)
+          if (record) {
+            idCache[container.type][id] = true
+            include[container.type].push(record)
+          }
         }
-      }
 
-      // If nothing so far, delete the type from include.
-      if (!include[container.type].length)
-        delete include[container.type]
+        // If nothing so far, delete the type from include.
+        if (!include[container.type].length)
+          delete include[container.type]
 
-      return include
-    }, {})
+        return include
+      }, {})
 
-    if (Object.keys(include).length)
-      Object.defineProperty(context.response, 'include', {
-        configurable: true,
-        value: include
-      })
+      if (Object.keys(include).length)
+        Object.defineProperty(context.response, 'include', {
+          configurable: true,
+          value: include
+        })
 
-    return context
-  })
+      return context
+    })
 }
 
 
@@ -2368,73 +2378,73 @@ function dispatch (options) {
   // Start a promise chain.
   return Promise.resolve(context)
 
-  .then(function (context) {
-    var type = context.request.type
-    var ids = context.request.ids
-    var language = context.request.meta.language
-    var error
+    .then(function (context) {
+      var type = context.request.type
+      var ids = context.request.ids
+      var language = context.request.meta.language
+      var error
 
-    // Make sure that IDs are an array of unique values.
-    if (ids) context.request.ids = unique(ids)
+      // Make sure that IDs are an array of unique values.
+      if (ids) context.request.ids = unique(ids)
 
-    // If a type is unspecified, block the request.
-    if (type === null) {
-      error = new BadRequestError(message('UnspecifiedType', language))
-      error.isTypeUnspecified = true
-      throw error
-    }
+      // If a type is unspecified, block the request.
+      if (type === null) {
+        error = new BadRequestError(message('UnspecifiedType', language))
+        error.isTypeUnspecified = true
+        throw error
+      }
 
-    // If a type is specified and it doesn't exist, block the request.
-    if (!recordTypes.hasOwnProperty(type))
-      throw new NotFoundError(
-        message('InvalidType', language, { type: type }))
+      // If a type is specified and it doesn't exist, block the request.
+      if (!recordTypes.hasOwnProperty(type))
+        throw new NotFoundError(
+          message('InvalidType', language, { type: type }))
 
-    // Block invalid method.
-    if (!(method in flows))
-      throw new MethodError(
-        message('InvalidMethod', language, { method: method }))
+      // Block invalid method.
+      if (!(method in flows))
+        throw new MethodError(
+          message('InvalidMethod', language, { method: method }))
 
-    return adapter.beginTransaction()
-  })
+      return adapter.beginTransaction()
+    })
 
-  .then(function (transaction) {
-    var chain, flow, i, j
+    .then(function (transaction) {
+      var chain, flow, i, j
 
-    context.transaction = transaction
-    chain = Promise.resolve(context)
-    flow = flows[method]
+      context.transaction = transaction
+      chain = Promise.resolve(context)
+      flow = flows[method]
 
-    for (i = 0, j = flow.length; i < j; i++)
-      chain = chain.then(flow[i])
+      for (i = 0, j = flow.length; i < j; i++)
+        chain = chain.then(flow[i])
 
-    return chain
-  })
+      return chain
+    })
 
-  .then(function (context) {
-    return context.transaction.endTransaction()
-      .then(function () {
-        var method = context.request.method
-        var response = context.response
-        var payload = response.payload
+    .then(function (context) {
+      return context.transaction.endTransaction()
+        .then(function () {
+          var method = context.request.method
+          var response = context.response
+          var payload = response.payload
 
-        if (!payload) return new Empty(response)
-        if (method === createMethod) return new Created(response)
+          if (!payload) return new Empty(response)
+          if (method === createMethod) return new Created(response)
 
-        return new OK(response)
-      })
-  })
+          return new OK(response)
+        })
+    })
 
   // This makes sure to call `endTransaction` before re-throwing the error.
-  .catch(function (error) {
-    return 'transaction' in context ?
-      context.transaction.endTransaction(error)
-        .then(throwError, throwError) :
-      throwError()
+    .catch(function (error) {
+      return 'transaction' in context ?
+        context.transaction.endTransaction(error)
+          .then(throwError, throwError) :
+        throwError()
 
-    function throwError () {
-      throw assign(error, context.response)
-    }
-  })
+      function throwError () {
+        throw assign(error, context.response)
+      }
+    })
 }
 
 
@@ -2542,301 +2552,303 @@ module.exports = function (context) {
   // Start a promise chain.
   return Promise.resolve(context.request.payload)
 
-  .then(function (payload) {
-    var i, j, update, field
+    .then(function (payload) {
+      var i, j, update, field
 
-    updates = payload
-    validateUpdates(updates, context.request.meta)
+      updates = payload
+      validateUpdates(updates, context.request.meta)
 
-    type = context.request.type
-    meta = context.request.meta
-    transaction = context.transaction
-    language = meta.language
+      type = context.request.type
+      meta = context.request.meta
+      transaction = context.transaction
+      language = meta.language
 
-    fields = recordTypes[type]
-    hook = hooks[type]
+      fields = recordTypes[type]
+      hook = hooks[type]
 
-    // Delete denormalized inverse fields, can't be updated.
-    for (field in fields) {
-      if (linkKey in fields[field]) links.push(field)
-      if (denormalizedInverseKey in fields[field])
-        for (i = 0, j = updates.length; i < j; i++) {
-          update = updates[i]
-          if (update.replace) delete update.replace[field]
-          if (update.pull) delete update.pull[field]
-          if (update.push) delete update.push[field]
-        }
-    }
+      // Delete denormalized inverse fields, can't be updated.
+      for (field in fields) {
+        if (linkKey in fields[field]) links.push(field)
+        if (denormalizedInverseKey in fields[field])
+          for (i = 0, j = updates.length; i < j; i++) {
+            update = updates[i]
+            if (update.replace) delete update.replace[field]
+            if (update.pull) delete update.pull[field]
+            if (update.push) delete update.push[field]
+          }
+      }
 
-    return transaction.find(type, map(updates, function (update) {
-      return update[primaryKey]
-    }), null, meta)
-  })
-
-  .then(function (records) {
-    if (records.length < updates.length)
-      throw new NotFoundError(message('UpdateRecordMissing', language))
-
-    return Promise.all(map(records, function (record) {
-      var update, cloneUpdate
-      var hasHook = typeof hook[0] === 'function'
-      var id = record[primaryKey]
-
-      update = find(updates, function (update) {
-        return update[primaryKey] === id
-      })
-
-      if (!update) throw new NotFoundError(
-        message('UpdateRecordMissing', language))
-
-      if (hasHook) cloneUpdate = clone(update)
-
-      return Promise.resolve(hasHook ?
-        hook[0](context, record, update) : update)
-      .then(function (result) {
-        if (result && typeof result === 'object') update = result
-
-        if (hasHook) {
-          // Check if the update has been modified or not.
-          if (!deepEqual(update, cloneUpdate))
-            context.response.meta.updateModified = true
-
-          // Runtime safety check: primary key must be the same.
-          if (update[primaryKey] !== id) throw new BadRequestError(
-            message('InvalidID', language))
-        }
-
-        hookedUpdates.push(update)
-        Object.defineProperty(update, updateRecordKey, { value: record })
-
-        // Shallow clone the record.
-        record = assign({}, record)
-
-        // Apply updates to record.
-        applyUpdate(record, update)
-
-        // Apply operators to record.
-        if (update.operate)
-          record = adapter.applyOperators(record, update.operate)
-
-        // Enforce the fields.
-        enforce(type, record, fields, meta)
-
-        // Ensure referential integrity.
-        return checkLinks.call(self, transaction, record, fields, links, meta)
-        .then(function (linked) {
-          Object.defineProperty(update, linkedHashKey, { value: linked })
-          return record
-        })
-      })
-    }))
-  })
-
-  .then(function (records) {
-    var i, j
-
-    validateRecords.call(self, records, fields, links, meta)
-
-    Object.defineProperty(context.response, 'records', {
-      configurable: true,
-      value: records
+      return transaction.find(type, map(updates, function (update) {
+        return update[primaryKey]
+      }), null, meta)
     })
 
-    // Drop fields in the updates that aren't defined in the record type
-    // before doing the update.
-    for (i = 0, j = hookedUpdates.length; i < j; i++)
-      dropFields(hookedUpdates[i], fields)
+    .then(function (records) {
+      if (records.length < updates.length)
+        throw new NotFoundError(message('UpdateRecordMissing', language))
 
-    return transaction.update(type, hookedUpdates, meta)
-  })
+      return Promise.all(map(records, function (record) {
+        var update, cloneUpdate
+        var hasHook = typeof hook[0] === 'function'
+        var id = record[primaryKey]
 
-  .then(function () {
-    var inverseField, isArray, linkedType, linkedIsArray, linked, record,
-      partialRecord, partialRecords, ids, id, push, pull, update, field
-    var i, j, k, l, m, n
+        update = find(updates, function (update) {
+          return update[primaryKey] === id
+        })
 
-    // Build up related updates based on update objects.
-    var idCache = {}
+        if (!update) throw new NotFoundError(
+          message('UpdateRecordMissing', language))
 
-    // Iterate over each update to generate related updates.
-    for (i = 0, j = hookedUpdates.length; i < j; i++) {
-      update = hookedUpdates[i]
+        if (hasHook) cloneUpdate = clone(update)
 
-      for (k = 0, l = links.length; k < l; k++) {
-        field = links[k]
-        inverseField = fields[field][inverseKey]
+        return Promise.resolve(hasHook ?
+          hook[0](context, record, update) : update)
+          .then(function (result) {
+            if (result && typeof result === 'object') update = result
 
-        if (!inverseField) continue
+            if (hasHook) {
+              // Check if the update has been modified or not.
+              if (!deepEqual(update, cloneUpdate))
+                context.response.meta.updateModified = true
 
-        isArray = fields[field][isArrayKey]
-        linkedType = fields[field][linkKey]
-        linkedIsArray =
+              // Runtime safety check: primary key must be the same.
+              if (update[primaryKey] !== id) throw new BadRequestError(
+                message('InvalidID', language))
+            }
+
+            hookedUpdates.push(update)
+            Object.defineProperty(update, updateRecordKey, { value: record })
+
+            // Shallow clone the record.
+            record = assign({}, record)
+
+            // Apply updates to record.
+            applyUpdate(record, update)
+
+            // Apply operators to record.
+            if (update.operate)
+              record = adapter.applyOperators(record, update.operate)
+
+            // Enforce the fields.
+            enforce(type, record, fields, meta)
+
+            // Ensure referential integrity.
+            return checkLinks.call(
+              self, transaction, record, fields, links, meta)
+              .then(function (linked) {
+                Object.defineProperty(update, linkedHashKey, { value: linked })
+                return record
+              })
+          })
+      }))
+    })
+
+    .then(function (records) {
+      var i, j
+
+      validateRecords.call(self, records, fields, links, meta)
+
+      Object.defineProperty(context.response, 'records', {
+        configurable: true,
+        value: records
+      })
+
+      // Drop fields in the updates that aren't defined in the record type
+      // before doing the update.
+      for (i = 0, j = hookedUpdates.length; i < j; i++)
+        dropFields(hookedUpdates[i], fields)
+
+      return transaction.update(type, hookedUpdates, meta)
+    })
+
+    .then(function () {
+      var inverseField, isArray, linkedType, linkedIsArray, linked, record,
+        partialRecord, partialRecords, ids, id, push, pull, update, field
+      var i, j, k, l, m, n
+
+      // Build up related updates based on update objects.
+      var idCache = {}
+
+      // Iterate over each update to generate related updates.
+      for (i = 0, j = hookedUpdates.length; i < j; i++) {
+        update = hookedUpdates[i]
+
+        for (k = 0, l = links.length; k < l; k++) {
+          field = links[k]
+          inverseField = fields[field][inverseKey]
+
+          if (!inverseField) continue
+
+          isArray = fields[field][isArrayKey]
+          linkedType = fields[field][linkKey]
+          linkedIsArray =
           recordTypes[linkedType][inverseField][isArrayKey]
 
-        // Do some initialization.
-        if (!relatedUpdates[linkedType]) relatedUpdates[linkedType] = []
-        if (!idCache[linkedType]) idCache[linkedType] = {}
+          // Do some initialization.
+          if (!relatedUpdates[linkedType]) relatedUpdates[linkedType] = []
+          if (!idCache[linkedType]) idCache[linkedType] = {}
 
-        record = update[updateRecordKey]
-        linked = update[linkedHashKey]
+          record = update[updateRecordKey]
+          linked = update[linkedHashKey]
 
-        // Replacing a link field is pretty complicated.
-        if (update.replace && update.replace.hasOwnProperty(field)) {
-          id = update.replace[field]
+          // Replacing a link field is pretty complicated.
+          if (update.replace && update.replace.hasOwnProperty(field)) {
+            id = update.replace[field]
 
-          if (!Array.isArray(id)) {
+            if (!Array.isArray(id)) {
             // Don't need to worry about inverse updates if the value does not
             // change.
-            if (id === record[field]) continue
+              if (id === record[field]) continue
 
-            // Set related field.
-            if (id !== null)
-              addId(update[primaryKey],
-                getUpdate(linkedType, id, relatedUpdates, idCache),
-                inverseField, linkedIsArray)
+              // Set related field.
+              if (id !== null)
+                addId(update[primaryKey],
+                  getUpdate(linkedType, id, relatedUpdates, idCache),
+                  inverseField, linkedIsArray)
 
-            // Unset 2nd degree related record.
-            if (linked.hasOwnProperty(field) &&
+              // Unset 2nd degree related record.
+              if (linked.hasOwnProperty(field) &&
               linked[field][inverseField] !== null &&
               !linkedIsArray &&
               linked[field][inverseField] !== update[primaryKey])
-              removeId(id,
-                getUpdate(
-                  linkedType, linked[field][inverseField],
-                  relatedUpdates, idCache),
-                inverseField, linkedIsArray)
+                removeId(id,
+                  getUpdate(
+                    linkedType, linked[field][inverseField],
+                    relatedUpdates, idCache),
+                  inverseField, linkedIsArray)
 
-            // For unsetting, remove ID from related record.
-            if (record[field] !== null &&
+              // For unsetting, remove ID from related record.
+              if (record[field] !== null &&
               record[field] !== update[field] &&
               record[field] !== id)
-              removeId(update[primaryKey],
-                getUpdate(
-                  linkedType, record[field], relatedUpdates, idCache),
-                inverseField, linkedIsArray)
+                removeId(update[primaryKey],
+                  getUpdate(
+                    linkedType, record[field], relatedUpdates, idCache),
+                  inverseField, linkedIsArray)
 
-            // After this point, there's no need to go over push/pull.
-            continue
-          }
-
-          ids = id
-
-          // Compute differences for pull, and mutate the update.
-          for (m = 0, n = record[field].length; m < n; m++) {
-            id = record[field][m]
-            if (!includes(ids, id)) {
-              if (!('pull' in update)) update.pull = {}
-              if (update.pull.hasOwnProperty(field)) {
-                if (Array.isArray(update.pull[field])) {
-                  update.pull[field].push(id)
-                  continue
-                }
-                update.pull[field] = [ update.pull[field], id ]
-                continue
-              }
-              update.pull[field] = [ id ]
-            }
-          }
-
-          // Compute differences for push, and mutate the update.
-          for (m = 0, n = ids.length; m < n; m++) {
-            id = ids[m]
-            if (!includes(record[field], id)) {
-              if (!('push' in update)) update.push = {}
-              if (update.push.hasOwnProperty(field)) {
-                if (Array.isArray(update.push[field])) {
-                  update.push[field].push(id)
-                  continue
-                }
-                update.push[field] = [ update.push[field], id ]
-                continue
-              }
-              update.push[field] = [ id ]
-            }
-          }
-
-          // Delete the original replace, since it is no longer valid.
-          delete update.replace[field]
-        }
-
-        if (update.pull && update.pull[field]) {
-          pull = Array.isArray(update.pull[field]) ?
-            update.pull[field] : [ update.pull[field] ]
-
-          for (m = 0, n = pull.length; m < n; m++) {
-            id = pull[m]
-            if (id !== null)
-              removeId(update[primaryKey],
-                getUpdate(linkedType, id, relatedUpdates, idCache),
-                inverseField, linkedIsArray)
-          }
-        }
-
-        if (update.push && update.push[field]) {
-          push = Array.isArray(update.push[field]) ?
-            update.push[field] : [ update.push[field] ]
-
-          for (m = 0, n = push.length; m < n; m++) {
-            id = push[m]
-            if (id !== null)
-              addId(update[primaryKey],
-                getUpdate(linkedType, id, relatedUpdates, idCache),
-                inverseField, linkedIsArray)
-          }
-        }
-
-        // Unset from 2nd degree related records.
-        if (linked.hasOwnProperty(field) && !linkedIsArray) {
-          partialRecords = Array.isArray(linked[field]) ?
-            linked[field] : [ linked[field] ]
-
-          for (m = 0, n = partialRecords.length; m < n; m++) {
-            partialRecord = partialRecords[m]
-
-            if (partialRecord[inverseField] === update[primaryKey])
+              // After this point, there's no need to go over push/pull.
               continue
+            }
 
-            removeId(partialRecord[primaryKey],
-              getUpdate(
-                type, partialRecord[inverseField],
-                relatedUpdates, idCache),
-              field, isArray)
+            ids = id
+
+            // Compute differences for pull, and mutate the update.
+            for (m = 0, n = record[field].length; m < n; m++) {
+              id = record[field][m]
+              if (!includes(ids, id)) {
+                if (!('pull' in update)) update.pull = {}
+                if (update.pull.hasOwnProperty(field)) {
+                  if (Array.isArray(update.pull[field])) {
+                    update.pull[field].push(id)
+                    continue
+                  }
+                  update.pull[field] = [ update.pull[field], id ]
+                  continue
+                }
+                update.pull[field] = [ id ]
+              }
+            }
+
+            // Compute differences for push, and mutate the update.
+            for (m = 0, n = ids.length; m < n; m++) {
+              id = ids[m]
+              if (!includes(record[field], id)) {
+                if (!('push' in update)) update.push = {}
+                if (update.push.hasOwnProperty(field)) {
+                  if (Array.isArray(update.push[field])) {
+                    update.push[field].push(id)
+                    continue
+                  }
+                  update.push[field] = [ update.push[field], id ]
+                  continue
+                }
+                update.push[field] = [ id ]
+              }
+            }
+
+            // Delete the original replace, since it is no longer valid.
+            delete update.replace[field]
+          }
+
+          if (update.pull && update.pull[field]) {
+            pull = Array.isArray(update.pull[field]) ?
+              update.pull[field] : [ update.pull[field] ]
+
+            for (m = 0, n = pull.length; m < n; m++) {
+              id = pull[m]
+              if (id !== null)
+                removeId(update[primaryKey],
+                  getUpdate(linkedType, id, relatedUpdates, idCache),
+                  inverseField, linkedIsArray)
+            }
+          }
+
+          if (update.push && update.push[field]) {
+            push = Array.isArray(update.push[field]) ?
+              update.push[field] : [ update.push[field] ]
+
+            for (m = 0, n = push.length; m < n; m++) {
+              id = push[m]
+              if (id !== null)
+                addId(update[primaryKey],
+                  getUpdate(linkedType, id, relatedUpdates, idCache),
+                  inverseField, linkedIsArray)
+            }
+          }
+
+          // Unset from 2nd degree related records.
+          if (linked.hasOwnProperty(field) && !linkedIsArray) {
+            partialRecords = Array.isArray(linked[field]) ?
+              linked[field] : [ linked[field] ]
+
+            for (m = 0, n = partialRecords.length; m < n; m++) {
+              partialRecord = partialRecords[m]
+
+              if (partialRecord[inverseField] === update[primaryKey])
+                continue
+
+              removeId(partialRecord[primaryKey],
+                getUpdate(
+                  type, partialRecord[inverseField],
+                  relatedUpdates, idCache),
+                field, isArray)
+            }
           }
         }
       }
-    }
 
-    return Promise.all(map(Object.keys(relatedUpdates), function (type) {
-      return relatedUpdates[type].length ?
-        transaction.update(type, relatedUpdates[type], meta) :
-        null
-    }))
-  })
+      return Promise.all(map(Object.keys(relatedUpdates), function (type) {
+        return relatedUpdates[type].length ?
+          transaction.update(type, relatedUpdates[type], meta) :
+          null
+      }))
+    })
 
-  .then(function () {
-    var eventData = {}, linkedType
+    .then(function () {
+      var eventData = {}, linkedType
 
-    eventData[updateMethod] = {}
-    eventData[updateMethod][type] = hookedUpdates
+      eventData[updateMethod] = {}
+      eventData[updateMethod][type] = hookedUpdates
 
-    for (linkedType in relatedUpdates) {
-      scrubDenormalizedUpdates(relatedUpdates[linkedType], denormalizedFields)
+      for (linkedType in relatedUpdates) {
+        scrubDenormalizedUpdates(
+          relatedUpdates[linkedType], denormalizedFields)
 
-      if (!relatedUpdates[linkedType].length) continue
+        if (!relatedUpdates[linkedType].length) continue
 
-      if (linkedType !== type)
-        eventData[updateMethod][linkedType] = relatedUpdates[linkedType]
+        if (linkedType !== type)
+          eventData[updateMethod][linkedType] = relatedUpdates[linkedType]
 
-      // Get the union of update IDs.
-      else eventData[updateMethod][type] =
+        // Get the union of update IDs.
+        else eventData[updateMethod][type] =
         eventData[updateMethod][type].concat(relatedUpdates[type])
-    }
+      }
 
-    // Summarize changes during the lifecycle of the request.
-    self.emit(changeEvent, eventData)
+      // Summarize changes during the lifecycle of the request.
+      self.emit(changeEvent, eventData)
 
-    return context
-  })
+      return context
+    })
 }
 
 
@@ -3400,7 +3412,7 @@ Fortune.prototype.request = function (options) {
 
   if (connectionStatus === 0)
     return self.connect()
-    .then(function () { return dispatch.call(self, options) })
+      .then(function () { return dispatch.call(self, options) })
 
   else if (connectionStatus === 1)
     return new Promise(function (resolve, reject) {
@@ -3747,7 +3759,7 @@ function checkValue (field, key, value, meta) {
   // properly.
   if (!check(value)) throw new BadRequestError(
     message(field[isArrayKey] ? 'EnforceValueArray' : 'EnforceValue',
-    language, { key: key, type: field[typeKey].name }))
+      language, { key: key, type: field[typeKey].name }))
 }
 
 
