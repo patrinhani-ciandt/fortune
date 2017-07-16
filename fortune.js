@@ -1,6 +1,6 @@
 /*!
  * Fortune.js
- * Version 5.2.7
+ * Version 5.2.8
  * MIT License
  * http://fortune.js.org
  */
@@ -2176,19 +2176,21 @@ module.exports = function include (context) {
   var transaction = context.transaction
   var records = response.records
   var recordTypes = this.recordTypes
+  var hasField = true
+  var idCache = {}
   var i, j, record, id
 
+  // Skip if there's nothing to be done.
+  if (!type || !include || !records) return context
+
   // This cache is used to keep unique IDs per type.
-  var idCache = {}
   idCache[type] = {}
   for (i = 0, j = ids.length; i < j; i++)
     idCache[type][ids[i]] = true
 
-  if (!type || !include || !records) return context
-
   // It's necessary to iterate over primary records if no IDs were
   // provided initially.
-  if (ids && !ids.length)
+  if (!ids.length)
     for (i = 0, j = records.length; i < j; i++) {
       record = records[i]
       id = record[primaryKey]
@@ -2196,14 +2198,15 @@ module.exports = function include (context) {
     }
 
   // Cast `include` into an array if it's using shorthand.
-  if (!Array.isArray(include[0])) include = [ include ]
+  if (include.length && !Array.isArray(include[0]))
+    include = [ include ]
 
   return Promise.all(map(include, function (fields) {
     return new Promise(function (resolve, reject) {
       var currentType = type
-      var currentIds = []
       var includeOptions = []
-      var currentCache, currentOptions, currentField, i, j
+      var currentCache, currentIds, currentOptions, currentField
+      var i, j, ensureFields
 
       // Cast `fields` into an array if it's using shorthand.
       if (!Array.isArray(fields) ||
@@ -2216,21 +2219,27 @@ module.exports = function include (context) {
           fields[i] = fields[i][0]
         }
 
-      // Ensure that the first level field is in the record.
-      return Promise.all(map(records, function (record) {
-        var options
-
-        if (!record.hasOwnProperty(fields[0])) {
-          options = { fields: {} }
-          options.fields[fields[0]] = true
-
-          return transaction.find(type, [ record[primaryKey] ], options, meta)
-            .then(function (records) { return records[0] })
+      // Check if first level field in in each record.
+      for (i = 0, j = records.length; i < j; i++)
+        if (!(fields[0] in records[i])) {
+          hasField = false
+          break
         }
 
-        return record
-      }))
+      // Ensure that the first level field is in each record.
+      if (hasField)
+        ensureFields = Promise.resolve(records)
+      else {
+        currentOptions = { fields: {} }
+        currentOptions.fields[fields[0]] = true
+        currentIds = []
+        for (i = 0, j = records.length; i < j; i++)
+          currentIds.push(records[i][primaryKey])
+        ensureFields = transaction.find(
+          type, currentIds, currentOptions, meta)
+      }
 
+      return ensureFields
         .then(function (records) {
         // `cursor` refers to the current collection of records.
           return reduce(fields, function (records, field, index) {
