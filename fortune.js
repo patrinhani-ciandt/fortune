@@ -1,6 +1,6 @@
 /*!
  * Fortune.js
- * Version 5.2.8
+ * Version 5.2.9
  * MIT License
  * http://fortune.js.org
  */
@@ -1444,7 +1444,6 @@ exports.denormalizedInverse = constants.denormalizedInverse
 },{"./constants":18}],25:[function(require,module,exports){
 'use strict'
 
-var genericMessage = 'GenericError'
 
 module.exports = message
 
@@ -1458,6 +1457,7 @@ module.exports = message
  * @return {String}
  */
 function message (id, language, data) {
+  var genericMessage = 'GenericError'
   var str, key, subtag
 
   if (!message.hasOwnProperty(language)) {
@@ -1480,6 +1480,25 @@ function message (id, language, data) {
 // Assign fallback language to "en".
 Object.defineProperty(message, 'defaultLanguage', {
   value: 'en', writable: true
+})
+
+// Copy function, useful for not writing over the main function.
+Object.defineProperty(message, 'copy', {
+  value: function () {
+    /* eslint-disable no-new-func */
+    var fn = new Function('return ' + message.toString())()
+    /* eslint-enable no-new-func */
+    var lang
+
+    Object.defineProperty(fn, 'defaultLanguage', {
+      value: 'en', writable: true
+    })
+
+    for (lang in message)
+      fn[lang] = message[lang]
+
+    return fn
+  }
 })
 
 // Default language messages.
