@@ -1,6 +1,6 @@
 /*!
  * Fortune.js
- * Version 5.2.9
+ * Version 5.2.10
  * MIT License
  * http://fortune.js.org
  */
@@ -871,7 +871,6 @@ var Adapter = require('./')
 var common = require('../common')
 var errors = require('../common/errors')
 var keys = require('../common/keys')
-var message = require('../common/message')
 var promise = require('../common/promise')
 
 
@@ -900,7 +899,7 @@ function AdapterSingleton (properties) {
     common: common,
     errors: errors,
     keys: keys,
-    message: message,
+    message: properties.message,
     Promise: promise.Promise
   })
 }
@@ -908,7 +907,7 @@ function AdapterSingleton (properties) {
 
 module.exports = AdapterSingleton
 
-},{"../common":23,"../common/errors":20,"../common/keys":24,"../common/message":25,"../common/promise":27,"./":4}],6:[function(require,module,exports){
+},{"../common":23,"../common/errors":20,"../common/keys":24,"../common/promise":27,"./":4}],6:[function(require,module,exports){
 'use strict'
 
 var pull = require('./array/pull')
@@ -1541,30 +1540,7 @@ message.en = {
   'EnforceValue': 'The value of "{key}" is invalid, it must be a "{type}".',
   'EnforceValueArray': 'A value in the array of "{key}" is invalid, it must be a "{type}".',
   'FieldsFormat': 'Fields format is invalid. It may either be inclusive or exclusive, but not both.',
-  'RecordExists': 'A record with ID "{id}" already exists.',
-
-  // Used for HTML serializer.
-  'Index': 'Index',
-  'Class': 'Class',
-  'Properties': 'Properties',
-  'Include': 'Include',
-  'QueryOptions': 'Query Options',
-  'IncludedLabel': 'included',
-  'NoResults': 'No results.',
-  'Create': 'Create',
-  'Update': 'Update',
-  'Delete': 'Delete',
-  'True': 'True',
-  'False': 'False',
-  'IncludePath': 'Path (dot-separated)',
-  'Query': 'Query',
-  'Fields': 'Fields',
-  'Match': 'Match',
-  'Sort': 'Sort',
-  'Field': 'Field',
-  'Pagination': 'Pagination',
-  'Limit': 'Limit',
-  'Offset': 'Offset'
+  'RecordExists': 'A record with ID "{id}" already exists.'
 }
 /* eslint-enable max-len */
 
@@ -3313,6 +3289,7 @@ Fortune.prototype = new EventLite()
 Fortune.prototype.constructor = function Fortune (recordTypes, options) {
   var self = this
   var plainObject = {}
+  var message = common.message.copy()
   var adapter, method, stack, flows, type, hooks, i, j
 
   if (recordTypes === void 0) recordTypes = {}
@@ -3365,7 +3342,8 @@ Fortune.prototype.constructor = function Fortune (recordTypes, options) {
   adapter = new AdapterSingleton({
     adapter: options.adapter,
     recordTypes: recordTypes,
-    hooks: hooks
+    hooks: hooks,
+    message: message
   })
 
   // Internal properties.
@@ -3377,6 +3355,7 @@ Fortune.prototype.constructor = function Fortune (recordTypes, options) {
     options: { value: options },
     hooks: { value: hooks },
     recordTypes: { value: recordTypes, enumerable: true },
+    message: { value: message, enumerable: true },
 
     // Singleton instances.
     adapter: { value: adapter, enumerable: true, configurable: true },
