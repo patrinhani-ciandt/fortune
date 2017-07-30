@@ -1,6 +1,6 @@
 /*!
  * Fortune.js
- * Version 5.2.10
+ * Version 5.2.11
  * MIT License
  * http://fortune.js.org
  */
@@ -1167,7 +1167,8 @@ var castByType = [
   } ],
 
   [ Boolean, function (x) {
-    if (typeof x === 'string') return x === 'true'
+    if (typeof x === 'string')
+      return (/^(?:true|1|yes|t|y)$/i).test(x)
     return Boolean(x)
   } ],
 
